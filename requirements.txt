@@ -1,1 +1,9 @@
-shortuuid>=1,<2
+codetags
+flask
+flask-marshmallow
+flask-sqlalchemy
+marshmallow-sqlalchemy
+pymysql
+requests
+shortuuid
+twilio
