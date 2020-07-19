@@ -4,6 +4,9 @@ flask-marshmallow
 flask-sqlalchemy
 marshmallow-sqlalchemy
 pymysql
+prometheus_client
+prometheus_flask_exporter
 requests
 shortuuid
 twilio
+uwsgi
