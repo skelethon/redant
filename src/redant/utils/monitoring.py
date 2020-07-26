@@ -27,3 +27,8 @@ def start_metrics_server():
             LOG.debug('Start metrics server in UWSGI')
         metrics.start_http_server(int(os.getenv('METRICS_PORT')))
         return
+
+def metrics_hook(app):
+    metrics.init_app(app)
+    with app.app_context():
+        start_metrics_server()
