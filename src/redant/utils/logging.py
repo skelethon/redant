@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import os
 from flask import has_request_context, request
 from flask.logging import default_handler
 
@@ -42,3 +43,14 @@ class RequestFormatter(logging.Formatter):
             record.message_id = None
             record.remote_addr = None
         return super().format(record)
+
+
+STEP_STOP_LINE = None
+
+def printStepStop(LOG):
+    if os.getenv('REDANT_STEP_STOP'):
+        if LOG.isEnabledFor(logging.DEBUG):
+            global STEP_STOP_LINE
+            if STEP_STOP_LINE is None:
+                STEP_STOP_LINE = ''.rjust(80, '=')
+            LOG.debug(STEP_STOP_LINE)

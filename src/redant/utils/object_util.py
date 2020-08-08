@@ -20,5 +20,16 @@ def json_converter(o):
         return o.__str__()
     return o
 
-def jsonify(obj, field_names=[]):
+def json_dumps(obj, field_names=[]):
+    if isinstance(obj, str):
+        return obj
     return json.dumps(pick_object_fields(obj, field_names), default = json_converter, ensure_ascii=False)
+
+def json_loads(data):
+    if not isinstance(data, str):
+        return data, None
+    try:
+        json_dict = json.loads(data)
+        return json_dict, None
+    except Exception as exception:
+        return None, exception
