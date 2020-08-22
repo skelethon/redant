@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import logging
-import random
 
 from abc import ABCMeta, abstractproperty, abstractmethod
 from redant.utils.logging import getLogger

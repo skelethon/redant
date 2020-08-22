@@ -8,5 +8,6 @@ prometheus_client
 prometheus_flask_exporter
 requests
 shortuuid
+transitions
 twilio
 uwsgi
