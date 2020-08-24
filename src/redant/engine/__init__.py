@@ -218,6 +218,10 @@ class Descriptor(object):
     __metaclass__ = ABCMeta
     #
     def __init__(self, **kwargs):
+        #
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug('The states: %s' % json_dumps(self.states))
+        #
         pass
     #
     @abstractproperty

@@ -1,4 +1,31 @@
+*.py[cod]
+.venv
+.cache
+.testenv
+
+# Packages
+.eggs
+*.egg
+*.egg-info
 dist
 build
-*.egg-info
-*.pyc
+eggs
+sdist
+MANIFEST
+
+# Test
+.tox
+.testrepository
+
+# Editors
+*~
+.*.swp
+.idea
+.vscode
+.env
+
+# Git
+*.orig
+
+*.key
+*.pickle
