@@ -217,11 +217,14 @@ class Conversation(object):
 class Descriptor(object):
     __metaclass__ = ABCMeta
     #
+    __transitions = None
+    #
     def __init__(self, **kwargs):
         #
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug('The states: %s' % json_dumps(self.states))
         #
+        self.__transitions = self.enhanceRules(self.rules)
         pass
     #
     @abstractproperty
@@ -241,9 +244,29 @@ class Descriptor(object):
         pass
     #
     @abstractproperty
-    def transitions(self):
+    def rules(self):
         pass
     #
+    ##
+    @property
+    def transitions(self):
+        return self.__transitions
+    #
+    ##
+    @classmethod
+    def enhanceRules(cls, rules):
+        if not isinstance(rules, list):
+            return rules
+        #
+        for rule in rules:
+            if 'after' not in rule:
+                rule['after'] = []
+            if 'save_dialog' not in rule['after']:
+                rule['after'].insert(0, 'save_dialog')
+        #
+        return rules
+    #
+    ##
     @classmethod
     def __subclasshook__(cls, C):
         if cls is Descriptor:
