@@ -68,7 +68,7 @@ class Flow(object):
         self.machine = Machine(
             model=model,
             states=descriptor.states,
-            transitions=descriptor.transitions,
+            transitions=descriptor.rules,
             initial=current.state)
         #
         if LOG.isEnabledFor(logging.DEBUG):
@@ -217,14 +217,14 @@ class Conversation(object):
 class Descriptor(object):
     __metaclass__ = ABCMeta
     #
-    __transitions = None
+    __rules = None
     #
     def __init__(self, **kwargs):
         #
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug('The states: %s' % json_dumps(self.states))
         #
-        self.__transitions = self.enhanceRules(self.rules)
+        self.__rules = self.enhanceRules(self.transitions)
         pass
     #
     @abstractproperty
@@ -244,27 +244,34 @@ class Descriptor(object):
         pass
     #
     @abstractproperty
-    def rules(self):
+    def transitions(self):
         pass
     #
     ##
     @property
-    def transitions(self):
-        return self.__transitions
+    def rules(self):
+        return self.__rules
     #
     ##
     @classmethod
-    def enhanceRules(cls, rules):
-        if not isinstance(rules, list):
-            return rules
+    def enhanceRules(cls, transitions):
+        if not isinstance(transitions, list):
+            return transitions
         #
-        for rule in rules:
-            if 'after' not in rule:
-                rule['after'] = []
-            if 'save_dialog' not in rule['after']:
-                rule['after'].insert(0, 'save_dialog')
+        for transition in transitions:
+            #
+            if 'after' not in transition:
+                transition['after'] = []
+            if not isinstance(transition['after'], list):
+                transition['after'] = [ transition['after'] ]
+            if 'save_dialog' not in transition['after']:
+                transition['after'].insert(0, 'save_dialog')
+            #
+            if 'target' in transition:
+                transition['dest'] = transition['target']
+                del transition['target']
         #
-        return rules
+        return transitions
     #
     ##
     @classmethod
