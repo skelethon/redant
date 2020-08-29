@@ -260,18 +260,34 @@ class Descriptor(object):
         #
         for transition in transitions:
             #
-            if 'after' not in transition:
-                transition['after'] = []
-            if not isinstance(transition['after'], list):
-                transition['after'] = [ transition['after'] ]
-            if 'save_dialog' not in transition['after']:
-                transition['after'].insert(0, 'save_dialog')
+            if 'trigger' not in transition:
+                transition['trigger'] = 'next'
+            #
+            cls.__assertListItem(transition, 'before', 'transition_before')
+            cls.__assertListItem(transition, 'after', 'save_dialog', position=0)
+            cls.__assertListItem(transition, 'after', 'transition_after')
             #
             if 'target' in transition:
                 transition['dest'] = transition['target']
                 del transition['target']
         #
         return transitions
+    #
+    ##
+    @staticmethod
+    def __assertListItem(obj, list_name, item, position=None):
+        if not obj:
+            return obj
+        if list_name not in obj:
+            obj[list_name] = []
+        if not isinstance(obj[list_name], list):
+            obj[list_name] = [ obj[list_name] ]
+        if item not in obj[list_name]:
+            if isinstance(position, int) and position < len(obj[list_name]):
+                obj[list_name].insert(position, item)
+            else:
+                obj[list_name].append(item)
+        return obj
     #
     ##
     @classmethod

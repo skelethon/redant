@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
 import unittest
-import os, sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../..', 'src'))
 
 from redant.engine import Descriptor
 
@@ -15,22 +12,20 @@ class Descriptor_enhanceRules_test(unittest.TestCase):
     def test_ok(self):
         rules = [
             {
-                'trigger': 'next',
                 'source': 'anything',
-                'dest': 'welcome',
-                'after': ['transition_after']
+                'target': 'welcome'
             },
             {
-                'trigger': 'next',
                 'source': 'welcome',
-                'dest': 'waiting_for_name',
+                'target': 'waiting_for_name',
                 'before': ['transition_before'],
                 'after': ['save_dialog', 'transition_after']
             },
             {
-                'trigger': 'next',
+                'trigger': 'action',
                 'source': 'waiting_for_name',
-                'dest': 'waiting_for_age'
+                'target': 'waiting_for_age',
+                'after': ['commit']
             }
         ]
         #
@@ -39,6 +34,7 @@ class Descriptor_enhanceRules_test(unittest.TestCase):
                 'trigger': 'next',
                 'source': 'anything',
                 'dest': 'welcome',
+                'before': ['transition_before'],
                 'after': ['save_dialog', 'transition_after']
             },
             {
@@ -49,10 +45,11 @@ class Descriptor_enhanceRules_test(unittest.TestCase):
                 'after': ['save_dialog', 'transition_after']
             },
             {
-                'trigger': 'next',
+                'trigger': 'action',
                 'source': 'waiting_for_name',
                 'dest': 'waiting_for_age',
-                'after': ['save_dialog']
+                'before': ['transition_before'],
+                'after': ['save_dialog', 'commit', 'transition_after']
             }
         ]
         #
