@@ -27,19 +27,18 @@ class Controller(object):
 
 class Flow(object):
     #
+    __conversation = None
     __descriptor = None
     #
-    def __init__(self, model, descriptor, phone_number):
+    def __init__(self, conversation, phone_number):
         #
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug('PhoneNumber: [%s]' % phone_number)
         #
-        assert isinstance(descriptor, Descriptor),\
-            'descriptor object must be a Descriptor'
-        self.__descriptor = descriptor
         #
-        assert isinstance(model, Conversation) or model is None,\
-            'model object is None or must be a Conversation'
+        assert isinstance(conversation, Conversation), 'conversation argument must be a Conversation'
+        self.__conversation = conversation
+        self.__descriptor = self.__conversation.descriptor
         #
         # load the latest conversation
         current = ConversationModel.find_by_phone_number(phone_number)
@@ -48,38 +47,37 @@ class Flow(object):
         if not current:
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.debug('The first conversation of [%s], create new persist object.' % phone_number)
-            current = ConversationModel(phone_number=phone_number, state=descriptor.initial_state).create()
+            current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
         else:
             # check the state and timeout
-            if self.hasExpired(current, descriptor.states):
+            if self.hasExpired(current, self.__descriptor):
                 if LOG.isEnabledFor(logging.DEBUG):
                     LOG.debug('The conversation[%s] has expired, create another' % phone_number)
-                current = ConversationModel(phone_number=phone_number, state=descriptor.initial_state).create()
+                current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
             else:
                 if LOG.isEnabledFor(logging.DEBUG):
                     LOG.debug('The conversation[%s] is ok, continue ...' % phone_number)
             pass
         #
-        if model is not None:
-            model.descriptor = descriptor
-            model.persist = current
+        #
+        self.__conversation.persist = current
         #
         # create the conversation transition
         self.machine = Machine(
-            model=model,
-            states=descriptor.states,
-            transitions=descriptor.rules,
+            model=conversation,
+            states=self.__descriptor.states,
+            transitions=self.__descriptor.rules,
             initial=current.state)
         #
         if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('A machine for [%s] has been created with state [%s]' % (phone_number, str(model.state)))
+            LOG.debug('A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
         #
         pass
 
-    def hasExpired(self, conversation, states, timeout=3600*10):
-        if conversation.state in [self.__descriptor.quit_state, self.__descriptor.done_state]:
+    def hasExpired(self, conversation, descriptor, timeout=3600*10):
+        if conversation.state in [descriptor.quit_state, descriptor.done_state]:
             return True
-        if not conversation.state in states:
+        if not conversation.state in descriptor.states:
             return True
         return False
 
@@ -92,9 +90,16 @@ class Conversation(object):
     __persist = None
     __descriptor = None
     __final_states = []
+    __flow = None
     #
     #
-    def __init__(self, **kwargs):
+    def __init__(self, descriptor=None, phone_number=None, **kwargs):
+        #
+        assert isinstance(descriptor, Descriptor), 'descriptor argument must be a Descriptor'
+        self.__descriptor = descriptor
+        self.__final_states = [ self.__descriptor.done_state, self.__descriptor.quit_state ]
+        #
+        self.__flow = Flow(conversation = self, phone_number = phone_number)
         pass
     #
     #
@@ -105,7 +110,7 @@ class Conversation(object):
     #
     @property
     def descriptor(self):
-        return NotImplemented
+        return self.__descriptor
     #
     @descriptor.setter
     def descriptor(self, ref):
@@ -184,6 +189,15 @@ class Conversation(object):
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.debug('Logging farewell event failed, error: %s' % str(err))
             raise err
+    #
+    #
+    def transition_before(self):
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug('Before transition from state: [%s]' % self.state)
+    #
+    def transition_after(self):
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug('After transition to state: [%s]' % self.state)
     #
     #
     def _isInitialState(self):
