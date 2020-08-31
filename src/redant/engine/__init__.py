@@ -275,7 +275,7 @@ class Descriptor(object):
         for transition in transitions:
             #
             if 'trigger' not in transition:
-                transition['trigger'] = 'next'
+                transition['trigger'] = '_next'
             #
             cls.__assertListItem(transition, 'before', 'transition_before')
             cls.__assertListItem(transition, 'after', 'save_dialog', position=0)

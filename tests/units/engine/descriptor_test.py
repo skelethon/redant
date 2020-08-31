@@ -31,14 +31,14 @@ class Descriptor_enhanceRules_test(unittest.TestCase):
         #
         expected_rules = [
             {
-                'trigger': 'next',
+                'trigger': '_next',
                 'source': 'anything',
                 'dest': 'welcome',
                 'before': ['transition_before'],
                 'after': ['save_dialog', 'transition_after']
             },
             {
-                'trigger': 'next',
+                'trigger': '_next',
                 'source': 'welcome',
                 'dest': 'waiting_for_name',
                 'before': ['transition_before'],
