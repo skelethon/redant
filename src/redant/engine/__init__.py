@@ -3,6 +3,7 @@
 import logging
 
 from abc import ABCMeta, abstractproperty, abstractmethod
+from redant.utils.function_util import is_callable, call_function
 from redant.utils.logging import getLogger
 from redant.utils.object_util import json_dumps, json_loads
 from redant.models.conversations import ConversationModel, ConversationSchema
@@ -112,15 +113,6 @@ class Conversation(object):
     def descriptor(self):
         return self.__descriptor
     #
-    @descriptor.setter
-    def descriptor(self, ref):
-        #
-        assert isinstance(ref, Descriptor), 'object must be a Descriptor'
-        self.__descriptor = ref
-        self.__final_states = [ self.__descriptor.done_state, self.__descriptor.quit_state ]
-        #
-        return ref
-    #
     #
     @property
     def persist(self):
@@ -191,6 +183,31 @@ class Conversation(object):
             raise err
     #
     #
+    def next_action(self):
+        #
+        from_state = self.state
+        self._next()
+        to_state = self.state
+        #
+        kwargs = dict(from_state=from_state)
+        #
+        replies = self.__descriptor.replies
+        reply_name = from_state + '__' + to_state
+        if reply_name in replies and isinstance(replies[reply_name], str):
+            reply_func = replies[reply_name]
+            return call_function(reply_func, self, **kwargs)
+        #
+        reply_func = 'reply__' + reply_name
+        if is_callable(reply_func, self):
+            return call_function(reply_func, self, **kwargs)
+        #
+        reply_func = 'reply__' + self.state
+        if is_callable(reply_func, self):
+            return call_function(reply_func, self, **kwargs)
+        #
+        return None, None
+    #
+    #
     def transition_before(self):
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug('Before transition from state: [%s]' % self.state)
@@ -232,13 +249,14 @@ class Descriptor(object):
     __metaclass__ = ABCMeta
     #
     __rules = None
+    __replies = None
     #
     def __init__(self, **kwargs):
         #
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug('The states: %s' % json_dumps(self.states))
         #
-        self.__rules = self.enhanceRules(self.transitions)
+        self.__rules, self.__replies = self.enhanceRules(self.transitions)
         pass
     #
     @abstractproperty
@@ -267,10 +285,17 @@ class Descriptor(object):
         return self.__rules
     #
     ##
+    @property
+    def replies(self):
+        return self.__replies
+    #
+    ##
     @classmethod
     def enhanceRules(cls, transitions):
         if not isinstance(transitions, list):
             return transitions
+        #
+        replies = dict()
         #
         for transition in transitions:
             #
@@ -284,8 +309,11 @@ class Descriptor(object):
             if 'target' in transition:
                 transition['dest'] = transition['target']
                 del transition['target']
+            #
+            if 'reply' in transition:
+                replies[transition['source'] + '__' + transition['dest']] = transition['reply']
         #
-        return transitions
+        return transitions, replies
     #
     ##
     @staticmethod
