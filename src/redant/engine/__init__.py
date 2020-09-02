@@ -312,6 +312,7 @@ class Descriptor(object):
             #
             if 'reply' in transition:
                 replies[transition['source'] + '__' + transition['dest']] = transition['reply']
+                del transition['reply']
         #
         return transitions, replies
     #

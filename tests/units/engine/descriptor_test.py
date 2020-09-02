@@ -13,7 +13,8 @@ class Descriptor_enhanceRules_test(unittest.TestCase):
         rules = [
             {
                 'source': 'anything',
-                'target': 'welcome'
+                'target': 'welcome',
+                'reply': 'reply_on_welcome'
             },
             {
                 'source': 'welcome',
@@ -53,6 +54,7 @@ class Descriptor_enhanceRules_test(unittest.TestCase):
             }
         ]
         #
-        new_rules = Descriptor.enhanceRules(rules)
+        new_rules, replies = Descriptor.enhanceRules(rules)
         #
         self.assertListEqual(new_rules, expected_rules)
+        self.assertEqual(replies, {'anything__welcome': 'reply_on_welcome'})
