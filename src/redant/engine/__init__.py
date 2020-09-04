@@ -385,19 +385,13 @@ class RestInvoker(object):
         self.__url = mapping['url']
         self.__method = mapping['method'] if 'method' in mapping else 'GET'
         #
-        if 'i_transformer' in mapping and callable(mapping['i_transformer']):
-            self.__i_transformer = mapping['i_transformer']
-        else:
-            self.__i_transformer = RestInvoker._i_transformer
-        #
-        if 'o_transformer' in mapping and callable(mapping['o_transformer']):
-            self.__o_transformer = mapping['o_transformer']
-        else:
-            self.__o_transformer = RestInvoker._o_transformer
+        self.__i_transformer = RestInvoker.__extractCallable(mapping, 'i_transformer')
+        self.__o_transformer = RestInvoker.__extractCallable(mapping, 'o_transformer')
     #
     #
     def invoke(self, input=None):
-        r = requests.request(self.__method, self.__url)
+        kwargs = self.sanitize(self.__i_transformer(input))
+        r = requests.request(self.__method, self.__url, **kwargs)
         try:
             body = r.json()
         except JSONDecodeError as err:
@@ -405,8 +399,23 @@ class RestInvoker(object):
         return self.__o_transformer(body=body, status_code=r.status_code, response=r)
     #
     #
+    def sanitize(self, opts=dict()):
+        return opts
+    #
+    #
+    @classmethod
+    def __extractCallable(cls, mapping, name, defaultFunc=None):
+        if name in mapping and callable(mapping[name]):
+            return mapping[name]
+        if callable(defaultFunc):
+            return defaultFunc
+        return getattr(cls, '_' + name)
+    #
+    #
     def _i_transformer(data):
-        return dict(params={}, query={}, body=data, opts=None)
+        if data is None:
+            return dict()
+        return dict(data=data)
     #
     def _o_transformer(body, status_code, response=None):
         return body
