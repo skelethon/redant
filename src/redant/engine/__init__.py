@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import requests
 
 from abc import ABCMeta, abstractproperty, abstractmethod
 from redant.utils.function_util import is_callable, call_function
@@ -340,3 +341,72 @@ class Descriptor(object):
             if set(cls.__abstractmethods__) <= attrs:
                 return True
             return NotImplemented
+
+
+class RestClient(object):
+    __metaclass__ = ABCMeta
+    #
+    #
+    def __init__(self, **kwargs):
+        #
+        self.__invokers = {}
+        #
+        for mapping in self.mappings:
+            self.__invokers[mapping["name"]] = RestInvoker(mapping)
+    #
+    #
+    def invoke(self, entrypoint, input=None):
+        if entrypoint not in self.__invokers:
+            raise Exception('Rest entrypoint not found')
+        #
+        return self.__invokers[entrypoint].invoke(input)
+    #
+    #
+    @abstractproperty
+    def mappings(self):
+        pass
+    #
+    #
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is RestClient:
+            attrs = set(dir(C))
+            if set(cls.__abstractmethods__) <= attrs:
+                return True
+            return NotImplemented
+
+
+class RestInvoker(object):
+    #
+    #
+    def __init__(self, mapping, **kwargs):
+        self.__mapping = mapping
+        #
+        self.__url = mapping['url']
+        self.__method = mapping['method'] if 'method' in mapping else 'GET'
+        #
+        if 'i_transformer' in mapping and callable(mapping['i_transformer']):
+            self.__i_transformer = mapping['i_transformer']
+        else:
+            self.__i_transformer = RestInvoker._i_transformer
+        #
+        if 'o_transformer' in mapping and callable(mapping['o_transformer']):
+            self.__o_transformer = mapping['o_transformer']
+        else:
+            self.__o_transformer = RestInvoker._o_transformer
+    #
+    #
+    def invoke(self, input=None):
+        r = requests.request(self.__method, self.__url)
+        try:
+            body = r.json()
+        except JSONDecodeError as err:
+            body = r.text
+        return self.__o_transformer(body=body, status_code=r.status_code, response=r)
+    #
+    #
+    def _i_transformer(data):
+        return dict(params={}, query={}, body=data, opts=None)
+    #
+    def _o_transformer(body, status_code, response=None):
+        return body
