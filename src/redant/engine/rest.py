@@ -2,17 +2,20 @@
 
 import logging
 import requests
+import threading
 
 from abc import ABCMeta, abstractproperty, abstractmethod
+from redant.engine import EngineBase
 from redant.utils.logging import getLogger
 
 LOG = getLogger(__name__)
 
-class RestClient(object):
-    __metaclass__ = ABCMeta
+class RestClient(EngineBase, metaclass=ABCMeta):
     #
     #
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
+        #
+        self.__guard = RestGuard(self.auth_config)
         #
         self.__invokers = {}
         #
@@ -27,7 +30,14 @@ class RestClient(object):
         return self.__invokers[entrypoint].invoke(input)
     #
     #
-    @abstractproperty
+    @property
+    @abstractmethod
+    def auth_config(self):
+        pass
+    #
+    #
+    @property
+    @abstractmethod
     def mappings(self):
         pass
     #
@@ -41,11 +51,51 @@ class RestClient(object):
             return NotImplemented
 
 
+class RestBearerAuth(requests.auth.AuthBase):
+    #
+    def __init__(self, token):
+        self.__token = token
+    #
+    def __call__(self, r):
+        r.headers["authorization"] = "Bearer " + self.__token
+        return r
+
+
+class RestGuard(object):
+    #
+    def __init__(self, auth_config, **kwargs):
+        pass
+    #
+    #
+    @property
+    def available(self):
+        return True
+    #
+    @property
+    def access_token(self):
+        #
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug('Thread[%s] get the access-token' % (threading.current_thread().ident))
+    #
+    @property
+    def auth(self):
+        #
+        ## basic-auth
+        #...
+        #
+        ## digest-authentication
+        #...
+        #
+        ## if auth-mode is OAuth2
+        return RestBearerAuth(self.access_token)
+
+
 class RestInvoker(object):
     #
     #
-    def __init__(self, mapping, **kwargs):
+    def __init__(self, mapping, guard=None, **kwargs):
         self.__mapping = mapping
+        self.__guard = guard
         #
         self.__url = mapping['url']
         self.__method = mapping['method'] if 'method' in mapping else 'GET'
@@ -55,12 +105,18 @@ class RestInvoker(object):
     #
     #
     def invoke(self, input=None):
+        #
         kwargs = self.sanitize(self.__i_transformer(input))
+        #
+        if self.__guard is not None and self.__guard.available:
+            kwargs['auth'] = self.__guard.auth
+        #
         r = requests.request(self.__method, self.__url, **kwargs)
         try:
             body = r.json()
         except JSONDecodeError as err:
             body = r.text
+        #
         return self.__o_transformer(body=body, status_code=r.status_code, response=r)
     #
     #

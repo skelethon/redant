@@ -2,7 +2,7 @@
 
 import unittest
 
-from redant.engine import Descriptor
+from redant.engine.flow import Descriptor
 
 class Descriptor_enhanceRules_test(unittest.TestCase):
 
