@@ -4,13 +4,13 @@ import logging
 import requests
 import threading
 
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import abstractmethod
 from redant.engine import EngineBase
 from redant.utils.logging import getLogger
 
 LOG = getLogger(__name__)
 
-class RestClient(EngineBase, metaclass=ABCMeta):
+class RestClient(EngineBase):
     #
     #
     def __init__(self, *args, **kwargs):
@@ -21,6 +21,8 @@ class RestClient(EngineBase, metaclass=ABCMeta):
         #
         for mapping in self.mappings:
             self.__invokers[mapping["name"]] = RestInvoker(mapping)
+        #
+        super(RestClient, self).__init__(*args, **kwargs)
     #
     #
     def invoke(self, entrypoint, input=None):

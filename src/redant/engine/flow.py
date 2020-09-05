@@ -4,6 +4,7 @@ import logging
 import requests
 
 from abc import ABCMeta, abstractproperty, abstractmethod
+from redant.engine import EngineBase
 from redant.utils.function_util import is_callable, call_function
 from redant.utils.logging import getLogger
 from redant.utils.object_util import json_dumps, json_loads
@@ -12,12 +13,11 @@ from transitions import Machine
 
 LOG = getLogger(__name__)
 
-class Controller(object):
-    __metaclass__ = ABCMeta
-
-    def __init__(self, **kwargs):
-        pass
-
+class Controller(EngineBase):
+    #
+    def __init__(self, *args, **kwargs):
+        super(Controller, self).__init__(*args, **kwargs)
+    #
     @classmethod
     def __subclasshook__(cls, C):
         if cls is Controller:
@@ -27,65 +27,7 @@ class Controller(object):
             return NotImplemented
 
 
-class Flow(object):
-    #
-    __conversation = None
-    __descriptor = None
-    #
-    def __init__(self, conversation, phone_number):
-        #
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('PhoneNumber: [%s]' % phone_number)
-        #
-        #
-        assert isinstance(conversation, Conversation), 'conversation argument must be a Conversation'
-        self.__conversation = conversation
-        self.__descriptor = self.__conversation.descriptor
-        #
-        # load the latest conversation
-        current = ConversationModel.find_by_phone_number(phone_number)
-        #
-        # create one if not found
-        if not current:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('The first conversation of [%s], create new persist object.' % phone_number)
-            current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
-        else:
-            # check the state and timeout
-            if self.hasExpired(current, self.__descriptor):
-                if LOG.isEnabledFor(logging.DEBUG):
-                    LOG.debug('The conversation[%s] has expired, create another' % phone_number)
-                current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
-            else:
-                if LOG.isEnabledFor(logging.DEBUG):
-                    LOG.debug('The conversation[%s] is ok, continue ...' % phone_number)
-            pass
-        #
-        #
-        self.__conversation.persist = current
-        #
-        # create the conversation transition
-        self.machine = Machine(
-            model=conversation,
-            states=self.__descriptor.states,
-            transitions=self.__descriptor.rules,
-            initial=current.state)
-        #
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
-        #
-        pass
-
-    def hasExpired(self, conversation, descriptor, timeout=3600*10):
-        if conversation.state in [descriptor.quit_state, descriptor.done_state]:
-            return True
-        if not conversation.state in descriptor.states:
-            return True
-        return False
-
-
-class Conversation(object):
-    __metaclass__ = ABCMeta
+class Conversation(EngineBase):
     #
     __context = dict()
     __persist = None
@@ -100,8 +42,9 @@ class Conversation(object):
         self.__descriptor = descriptor
         self.__final_states = [ self.__descriptor.done_state, self.__descriptor.quit_state ]
         #
-        self.__flow = Flow(conversation = self, phone_number = phone_number)
-        pass
+        self.__flow = _Flow(conversation = self, phone_number = phone_number)
+        #
+        super(Conversation, self).__init__(**kwargs)
     #
     #
     @property
@@ -245,19 +188,19 @@ class Conversation(object):
             return NotImplemented
 
 
-class Descriptor(object):
-    __metaclass__ = ABCMeta
+class Descriptor(EngineBase):
     #
     __rules = None
     __replies = None
     #
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         #
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug('The states: %s' % json_dumps(self.states))
         #
         self.__rules, self.__replies = self.enhanceRules(self.transitions)
-        pass
+        #
+        super(Descriptor, self).__init__(*args, **kwargs)
     #
     @abstractproperty
     def states(self):
@@ -340,3 +283,60 @@ class Descriptor(object):
             if set(cls.__abstractmethods__) <= attrs:
                 return True
             return NotImplemented
+
+
+class _Flow(object):
+    #
+    __conversation = None
+    __descriptor = None
+    #
+    def __init__(self, conversation, phone_number):
+        #
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug('PhoneNumber: [%s]' % phone_number)
+        #
+        #
+        assert isinstance(conversation, Conversation), 'conversation argument must be a Conversation'
+        self.__conversation = conversation
+        self.__descriptor = self.__conversation.descriptor
+        #
+        # load the latest conversation
+        current = ConversationModel.find_by_phone_number(phone_number)
+        #
+        # create one if not found
+        if not current:
+            if LOG.isEnabledFor(logging.DEBUG):
+                LOG.debug('The first conversation of [%s], create new persist object.' % phone_number)
+            current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
+        else:
+            # check the state and timeout
+            if self.hasExpired(current, self.__descriptor):
+                if LOG.isEnabledFor(logging.DEBUG):
+                    LOG.debug('The conversation[%s] has expired, create another' % phone_number)
+                current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
+            else:
+                if LOG.isEnabledFor(logging.DEBUG):
+                    LOG.debug('The conversation[%s] is ok, continue ...' % phone_number)
+            pass
+        #
+        #
+        self.__conversation.persist = current
+        #
+        # create the conversation transition
+        self.machine = Machine(
+            model=conversation,
+            states=self.__descriptor.states,
+            transitions=self.__descriptor.rules,
+            initial=current.state)
+        #
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug('A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
+        #
+        pass
+
+    def hasExpired(self, conversation, descriptor, timeout=3600*10):
+        if conversation.state in [descriptor.quit_state, descriptor.done_state]:
+            return True
+        if not conversation.state in descriptor.states:
+            return True
+        return False
