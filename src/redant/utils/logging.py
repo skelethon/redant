@@ -45,6 +45,16 @@ class RequestFormatter(logging.Formatter):
         return super().format(record)
 
 
+class LogLevel:
+    CRITICAL = logging.CRITICAL
+    ERROR = logging.ERROR
+    WARNING = logging.WARNING
+    INFO = logging.INFO
+    DEBUG = logging.DEBUG
+    VERBOSE = 5
+    NOTSET = logging.NOTSET
+
+
 STEP_STOP_LINE = None
 
 def printStepStop(LOG):
