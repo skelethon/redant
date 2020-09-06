@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import logging
 import os
 import requests
 import threading
@@ -18,12 +17,14 @@ LOG = getLogger(__name__)
 
 class RestClient(EngineBase):
     #
+    __guard = None
+    __invokers = dict()
+    #
     #
     def __init__(self, *args, **kwargs):
         #
-        self.__guard = RestGuard(self.auth_config)
-        #
-        self.__invokers = {}
+        if self.auth_config is not None and len(self.auth_config) > 0:
+            self.__guard = RestGuard(self.auth_config)
         #
         for mapping in self.mappings:
             self.__invokers[mapping["name"]] = RestInvoker(mapping, guard=self.__guard)
@@ -68,8 +69,8 @@ class BearerAuth(requests.auth.AuthBase):
     #
     def __call__(self, r):
         bearer_token = r.headers["authorization"] = "Bearer " + self.__token
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.log(logging.DEBUG, 'Inject the Bearer-Access-Token into authorization header')
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'Inject the Bearer-Access-Token into authorization header')
         return r
 
 
@@ -81,6 +82,7 @@ class RestGuard(object):
     #
     ## Oauth2/Bearer Authentication
     __authenticator = None
+    __access_token = None
     __credentials = None
     #
     #
@@ -94,10 +96,9 @@ class RestGuard(object):
                 if auth_type == DIGEST_AUTH:
                     if not 'enabled' in auth_args or not auth_args['enabled']:
                         self.__basic_auth = HTTPDigestAuth(auth_args['username'], auth_args['password'])
-                if auth_type in ['bearer', 'oauth2']:
+                if auth_type in [BEARER_AUTH, 'oauth2']:
                     mapping = auth_config[auth_type]
                     self.__authenticator = RestInvoker(mapping, guard=None)
-                    self.__access_token = None
                     self.__credentials = None
         pass
     #
@@ -111,12 +112,12 @@ class RestGuard(object):
         #
         injected_token = os.getenv('REDANT_BEARER_ACCESS_TOKEN', None)
         if injected_token and len(injected_token) > 1:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('Inject value from the environment variable to the Bearer-Access-Token')
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'Inject value from the environment variable to the Bearer-Access-Token')
             return injected_token
         if self.__access_token is None:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('')
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The access_token not found, request a new credentials')
             result = self.__authenticator.invoke()
             if isinstance(result, dict):
                 if 'access_token' in result:

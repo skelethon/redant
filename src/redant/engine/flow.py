@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 
-import logging
-import requests
-
 from abc import ABCMeta, abstractproperty, abstractmethod
 from redant.engine import EngineBase
 from redant.utils.function_util import is_callable, call_function
-from redant.utils.logging import getLogger
+from redant.utils.logging import getLogger, LogLevel as LL
 from redant.utils.object_util import json_dumps, json_loads
 from redant.models.conversations import ConversationModel, ConversationSchema
 from transitions import Machine
@@ -72,11 +69,11 @@ class Conversation(EngineBase):
             story_dict, err = json_loads(story)
             if story_dict is not None:
                 self.__context = story_dict
-                if LOG.isEnabledFor(logging.DEBUG):
-                    LOG.debug('loading the context successfully: %s' % json_dumps(self.__context))
+                if LOG.isEnabledFor(LL.DEBUG):
+                    LOG.log(LL.DEBUG, 'loading the context successfully: %s' % json_dumps(self.__context))
             else:
-                if LOG.isEnabledFor(logging.DEBUG):
-                    LOG.debug('error on loading the context: %s' % str(err))
+                if LOG.isEnabledFor(LL.DEBUG):
+                    LOG.log(LL.DEBUG, 'error on loading the context: %s' % str(err))
         #
         return ref
     #
@@ -84,8 +81,8 @@ class Conversation(EngineBase):
     def save_dialog(self):
         #
         if self.__persist is None:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('The persist object is None, skipped')
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The persist object is None, skipped')
             return self
         #
         try:
@@ -96,12 +93,12 @@ class Conversation(EngineBase):
             #
             self.__persist.save()
             #
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('Logging current dialog successfully: %s' % story_json)
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'Logging current dialog successfully: %s' % story_json)
             return self
         except Exception as err:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('Logging current dialog failed, error: %s' % str(err))
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'Logging current dialog failed, error: %s' % str(err))
             raise err
         pass
     #
@@ -117,12 +114,12 @@ class Conversation(EngineBase):
             #
             self.__persist.save()
             #
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('Logging farewell event successfully: %s' % story_json)
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'Logging farewell event successfully: %s' % story_json)
             return self
         except Exception as err:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('Logging farewell event failed, error: %s' % str(err))
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'Logging farewell event failed, error: %s' % str(err))
             raise err
     #
     #
@@ -152,12 +149,12 @@ class Conversation(EngineBase):
     #
     #
     def transition_before(self):
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('Before transition from state: [%s]' % self.state)
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'Before transition from state: [%s]' % self.state)
     #
     def transition_after(self):
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('After transition to state: [%s]' % self.state)
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'After transition to state: [%s]' % self.state)
     #
     #
     def _isInitialState(self):
@@ -195,8 +192,8 @@ class Descriptor(EngineBase):
     #
     def __init__(self, *args, **kwargs):
         #
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('The states: %s' % json_dumps(self.states))
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'The states: %s' % json_dumps(self.states))
         #
         self.__rules, self.__replies = self.enhanceRules(self.transitions)
         #
@@ -292,8 +289,8 @@ class _Flow(object):
     #
     def __init__(self, conversation, phone_number):
         #
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('PhoneNumber: [%s]' % phone_number)
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'PhoneNumber: [%s]' % phone_number)
         #
         #
         assert isinstance(conversation, Conversation), 'conversation argument must be a Conversation'
@@ -305,18 +302,18 @@ class _Flow(object):
         #
         # create one if not found
         if not current:
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug('The first conversation of [%s], create new persist object.' % phone_number)
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The first conversation of [%s], create new persist object.' % phone_number)
             current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
         else:
             # check the state and timeout
             if self.hasExpired(current, self.__descriptor):
-                if LOG.isEnabledFor(logging.DEBUG):
-                    LOG.debug('The conversation[%s] has expired, create another' % phone_number)
+                if LOG.isEnabledFor(LL.DEBUG):
+                    LOG.log(LL.DEBUG, 'The conversation[%s] has expired, create another' % phone_number)
                 current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
             else:
-                if LOG.isEnabledFor(logging.DEBUG):
-                    LOG.debug('The conversation[%s] is ok, continue ...' % phone_number)
+                if LOG.isEnabledFor(LL.DEBUG):
+                    LOG.log(LL.DEBUG, 'The conversation[%s] is ok, continue ...' % phone_number)
             pass
         #
         #
@@ -329,8 +326,8 @@ class _Flow(object):
             transitions=self.__descriptor.rules,
             initial=current.state)
         #
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug('A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
         #
         pass
 
