@@ -74,7 +74,9 @@ class BearerAuth(requests.auth.AuthBase):
         return r
 
 
-class RestGuard(object):
+class AuthBuilder(object):
+    #
+    __available = True
     #
     ## Basic/Digest Authentication
     __basic_auth = None
@@ -86,26 +88,43 @@ class RestGuard(object):
     __credentials = None
     #
     #
-    def __init__(self, auth_config, **kwargs):
-        if isinstance(auth_config, dict):
-            for auth_type in auth_config.keys():
-                auth_args = auth_config[auth_type]
-                if auth_type == BASIC_AUTH:
-                    if not 'enabled' in auth_args or not auth_args['enabled']:
-                        self.__basic_auth = HTTPBasicAuth(auth_args['username'], auth_args['password'])
-                if auth_type == DIGEST_AUTH:
-                    if not 'enabled' in auth_args or not auth_args['enabled']:
-                        self.__basic_auth = HTTPDigestAuth(auth_args['username'], auth_args['password'])
-                if auth_type in [BEARER_AUTH, 'oauth2']:
-                    mapping = auth_config[auth_type]
-                    self.__authenticator = RestInvoker(mapping, guard=None)
-                    self.__credentials = None
+    def __init__(self, auth_args, **kwargs):
+        assert isinstance(auth_args, dict), 'auth_args must be a dict'
+        #
+        self.__available = not 'enabled' in auth_args or auth_args['enabled']
+        if not self.__available:
+            return
+        #
+        auth_type = auth_args['auth_type']
+        if auth_type == BASIC_AUTH:
+            self.__basic_auth = HTTPBasicAuth(auth_args['username'], auth_args['password'])
+        if auth_type == DIGEST_AUTH:
+            self.__basic_auth = HTTPDigestAuth(auth_args['username'], auth_args['password'])
+        if auth_type in [BEARER_AUTH, 'oauth2']:
+            self.__authenticator = RestInvoker(mapping=auth_args, guard=None)
+            self.__credentials = None
         pass
     #
     #
     @property
     def available(self):
-        return True
+        return self.__available
+    #
+    @property
+    def auth(self):
+        if not self.__available:
+            return None
+        #
+        ## basic-auth
+        if self.__basic_auth is not None:
+            return self.__basic_auth
+        #
+        ## digest-authentication
+        if self.__digest_auth is not None:
+            return self.__digest_auth
+        #
+        ## if auth-mode is OAuth2
+        return BearerAuth(self.access_token)
     #
     @property
     def access_token(self):
@@ -118,25 +137,34 @@ class RestGuard(object):
         if self.__access_token is None:
             if LOG.isEnabledFor(LL.DEBUG):
                 LOG.log(LL.DEBUG, 'The access_token not found, request a new credentials')
-            result = self.__authenticator.invoke()
-            if isinstance(result, dict):
-                if 'access_token' in result:
-                    self.__access_token = result['access_token']
+            if self.__authenticator is not None:
+                result = self.__authenticator.invoke()
+                if isinstance(result, dict):
+                    if 'access_token' in result:
+                        self.__access_token = result['access_token']
         return self.__access_token
+
+
+class RestGuard(object):
     #
-    @property
-    def auth(self):
-        #
-        ## basic-auth
-        if self.__basic_auth is not None:
-            return self.__basic_auth
-        #
-        ## digest-authentication
-        if self.__digest_auth is not None:
-            return self.__digest_auth
-        #
-        ## if auth-mode is OAuth2
-        return BearerAuth(self.access_token)
+    __auths = dict()
+    __auth_default = None
+    #
+    def __init__(self, auth_config, **kwargs):
+        if isinstance(auth_config, dict):
+            for auth_name in auth_config.keys():
+                auth_args = auth_config[auth_name]
+                self.__auths[auth_name] = AuthBuilder(auth_args)
+                if self.__auth_default is None:
+                    self.__auth_default = auth_name
+        pass
+    #
+    def getAuth(self, auth_name):
+        if auth_name is None:
+            auth_name = self.__auth_default
+        if auth_name not in self.__auths:
+            return None
+        return self.__auths[auth_name].auth
 
 
 class RestInvoker(object):
@@ -146,6 +174,7 @@ class RestInvoker(object):
         self.__mapping = mapping
         self.__guard = guard
         #
+        self.__auth_name = mapping['auth_name'] if 'auth_name' in mapping else None
         self.__url = mapping['url']
         self.__method = mapping['method'] if 'method' in mapping else 'GET'
         self.__data = mapping['data'] if 'data' in mapping else None
@@ -158,8 +187,10 @@ class RestInvoker(object):
         #
         kwargs = self.sanitize(self.__i_transformer(*args, **kwargs))
         #
-        if self.__guard is not None and self.__guard.available:
-            kwargs['auth'] = self.__guard.auth
+        if self.__guard is not None:
+            auth = self.__guard.getAuth(self.__auth_name)
+            if auth is not None:
+                kwargs['auth'] = auth
         #
         if 'data' not in kwargs and self.__data is not None:
             kwargs['data'] = self.__data

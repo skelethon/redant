@@ -51,7 +51,7 @@ class LogLevel:
     WARNING = logging.WARNING
     INFO = logging.INFO
     DEBUG = logging.DEBUG
-    VERBOSE = 5
+    VERBOSE = logging.DEBUG
     NOTSET = logging.NOTSET
 
 
