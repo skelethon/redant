@@ -24,7 +24,7 @@ class RestClient(EngineBase):
     def __init__(self, *args, **kwargs):
         #
         if self.auth_config is not None and len(self.auth_config) > 0:
-            self.__guard = RestGuard(self.auth_config)
+            self.__guard = RestGuard(**self.auth_config)
         #
         for mapping in self.mappings:
             self.__invokers[mapping["name"]] = RestInvoker(mapping, guard=self.__guard)
@@ -150,10 +150,18 @@ class RestGuard(object):
     __auths = dict()
     __auth_default = None
     #
-    def __init__(self, auth_config, **kwargs):
-        if isinstance(auth_config, dict):
-            for auth_name in auth_config.keys():
-                auth_args = auth_config[auth_name]
+    def __init__(self, entrypoints=dict(), default=None, **kwargs):
+        #
+        assert isinstance(entrypoints, dict), "entrypoints must be a dict"
+        assert default is None or (isinstance(default, str) and default in entrypoints),\
+                "[default] must be None or a key of entrypoints"
+        #
+        if default is not None:
+            self.__auth_default = default
+        #
+        if isinstance(entrypoints, dict):
+            for auth_name in entrypoints.keys():
+                auth_args = entrypoints[auth_name]
                 self.__auths[auth_name] = AuthBuilder(auth_args)
                 if self.__auth_default is None:
                     self.__auth_default = auth_name
