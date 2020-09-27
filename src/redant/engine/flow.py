@@ -133,10 +133,15 @@ class Conversation(EngineBase):
     #
     #
     def next_action(self):
+        #
+        ## force quit
+        #
         force_quit, reply_on_quit = self._force_quit
         if force_quit:
             self.goodbye()
             return reply_on_quit
+        #
+        ## normal flow
         #
         from_state = self.state
         self._next()

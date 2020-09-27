@@ -11,3 +11,4 @@ class url_build_test(unittest.TestCase):
 
     def test_ok(self):
         self.assertEqual(url_build(hostname='example.com'), 'https://example.com')
+        self.assertEqual(url_build(hostname='example.com', path='/'), 'https://example.com/')
