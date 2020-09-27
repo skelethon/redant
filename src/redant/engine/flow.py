@@ -26,6 +26,8 @@ class Controller(EngineBase):
 
 class Conversation(EngineBase):
     #
+    __user_id = None
+    __phone_number = None
     __context = dict()
     __persist = None
     __descriptor = None
@@ -34,6 +36,8 @@ class Conversation(EngineBase):
     #
     #
     def __init__(self, phone_number, descriptor=None, **kwargs):
+        #
+        self.__phone_number = phone_number
         #
         assert isinstance(descriptor, Descriptor), 'descriptor argument must be a Descriptor'
         self.__descriptor = descriptor
@@ -47,6 +51,11 @@ class Conversation(EngineBase):
     @property
     def _context(self):
         return self.__context
+    #
+    #
+    @property
+    def phone_number(self):
+        return self.__phone_number
     #
     #
     @property
@@ -330,10 +339,28 @@ class _Flow(object):
             LOG.log(LL.DEBUG, 'A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
         #
         pass
-
-    def hasExpired(self, conversation, descriptor, timeout=3600*10):
-        if conversation.state in [descriptor.quit_state, descriptor.done_state]:
-            return True
-        if not conversation.state in descriptor.states:
+    #
+    def __has_done(self, persist):
+        if persist.state == self.__descriptor.done_state:
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The conversation has been done')
             return True
         return False
+    #
+    def __has_quit(self, persist):
+        if persist.state == self.__descriptor.quit_state:
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The user has quit this conversation')
+            return True
+        return False
+    #
+    def __is_invalid_state(self, persist):
+        if not persist.state in self.__descriptor.states:
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The conversation has invalid state [%s] / valid states: %s' % 
+                    (persist.state, json_dumps(self.__descriptor.states)))
+            return True
+        return False
+    #
+    def hasExpired(self, persist, descriptor, timeout=3600*10):
+        return any([self.__has_done(persist), self.__has_quit(persist), self.__is_invalid_state(persist)])

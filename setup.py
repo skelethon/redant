@@ -4,7 +4,7 @@ import setuptools
 
 setuptools.setup(
   name = 'redant',
-  version = '0.0.1',
+  version = '0.1.0',
   description = '',
   author = 'redant',
   license = 'GPL-3.0',
@@ -12,7 +12,7 @@ setuptools.setup(
   download_url = 'https://github.com/acegik/redant/downloads',
   keywords = ['tiny-messaging-platform', 'chatbot'],
   install_requires = open("requirements.txt").readlines(),
-  python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+  python_requires=">=3.0,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
   package_dir = {'':'src'},
   packages = setuptools.find_packages('src'),
 )

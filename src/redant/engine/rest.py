@@ -7,6 +7,7 @@ import threading
 from abc import abstractmethod
 from redant.engine import EngineBase
 from redant.utils.logging import getLogger, LogLevel as LL
+from redant.utils.net_util import url_build
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 BASIC_AUTH = 'basic'
@@ -26,17 +27,23 @@ class RestClient(EngineBase):
         if self.auth_config is not None and len(self.auth_config) > 0:
             self.__guard = RestGuard(**self.auth_config)
         #
-        for mapping in self.mappings:
-            self.__invokers[mapping["name"]] = RestInvoker(mapping, guard=self.__guard)
+        mappings = self.mappings
+        assert isinstance(mappings, dict), "mappings must be a dict"
+        #
+        entrypoints = mappings['entrypoints'] if 'entrypoints' in mappings else []
+        assert isinstance(entrypoints, list), "mappings['entrypoints'] must be a list"
+        #
+        for entrypoint in entrypoints:
+            self.__invokers[entrypoint["name"]] = RestInvoker(entrypoint=entrypoint, guard=self.__guard)
         #
         super(RestClient, self).__init__(*args, **kwargs)
     #
     #
-    def invoke(self, entrypoint, input=None):
-        if entrypoint not in self.__invokers:
+    def invoke(self, entrypoint_name, input=None):
+        if entrypoint_name not in self.__invokers:
             raise Exception('Rest entrypoint not found')
         #
-        return self.__invokers[entrypoint].invoke(input)
+        return self.__invokers[entrypoint_name].invoke(input)
     #
     #
     @property
@@ -101,7 +108,7 @@ class AuthBuilder(object):
         if auth_type == DIGEST_AUTH:
             self.__basic_auth = HTTPDigestAuth(auth_args['username'], auth_args['password'])
         if auth_type in [BEARER_AUTH, 'oauth2']:
-            self.__authenticator = RestInvoker(mapping=auth_args, guard=None)
+            self.__authenticator = RestInvoker(entrypoint=auth_args, guard=None)
             self.__credentials = None
         pass
     #
@@ -178,17 +185,23 @@ class RestGuard(object):
 class RestInvoker(object):
     #
     #
-    def __init__(self, mapping, guard=None, **kwargs):
-        self.__mapping = mapping
+    def __init__(self, entrypoint, guard=None, **kwargs):
+        self.__entrypoint = entrypoint
         self.__guard = guard
         #
-        self.__auth_name = mapping['auth_name'] if 'auth_name' in mapping else None
-        self.__url = mapping['url']
-        self.__method = mapping['method'] if 'method' in mapping else 'GET'
-        self.__data = mapping['data'] if 'data' in mapping else None
+        self.__auth_name = entrypoint['auth_name'] if 'auth_name' in entrypoint else None
         #
-        self.__i_transformer = RestInvoker.__extractCallable(mapping, 'i_transformer')
-        self.__o_transformer = RestInvoker.__extractCallable(mapping, 'o_transformer')
+        if isinstance(entrypoint['url'], str):
+            self.__url = entrypoint['url']
+        elif isinstance(entrypoint['url'], dict):
+            self.__url = url_build(**entrypoint['url'])
+        #
+        self.__method = entrypoint['method'] if 'method' in entrypoint else 'GET'
+        #
+        self.__data = entrypoint['data'] if 'data' in entrypoint else None
+        #
+        self.__i_transformer = RestInvoker.__extractCallable(entrypoint, 'i_transformer')
+        self.__o_transformer = RestInvoker.__extractCallable(entrypoint, 'o_transformer')
     #
     #
     def invoke(self, *args, **kwargs):
@@ -217,9 +230,9 @@ class RestInvoker(object):
     #
     #
     @classmethod
-    def __extractCallable(cls, mapping, name, defaultFunc=None):
-        if name in mapping and callable(mapping[name]):
-            return mapping[name]
+    def __extractCallable(cls, entrypoint, name, defaultFunc=None):
+        if name in entrypoint and callable(entrypoint[name]):
+            return entrypoint[name]
         if callable(defaultFunc):
             return defaultFunc
         return getattr(cls, '_' + name)

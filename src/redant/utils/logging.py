@@ -64,3 +64,7 @@ def printStepStop(LOG):
             if STEP_STOP_LINE is None:
                 STEP_STOP_LINE = ''.rjust(80, '=')
             LOG.debug(STEP_STOP_LINE)
+
+
+def getMetadata(obj):
+    return dict(class_name=type(obj).__name__)
