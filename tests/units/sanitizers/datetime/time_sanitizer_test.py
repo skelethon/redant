@@ -28,6 +28,9 @@ class TimeSanitizer_detect_time_test(unittest.TestCase):
         ok, o = s.detect_time('TOMORROW, 09:3pm')
         print(json_dumps(o))
         #
-        ok, o = s.detect_time('1/13/2020, 09:3pm')
+        ok, o = s.detect_time('1/12/2020, 09:3pm')
+        print(json_dumps(o))
+        #
+        ok, o = s.detect_time('10/12/2020, 7pm')
         print(json_dumps(o))
         pass

@@ -21,10 +21,6 @@ class TimeSanitizer(object):
         if src == 'now':
             return True, dict(human_time='Now', time=datetime.now())
         #
-        ok, result = self.detect_today_or_tomorrow_HH_am_pm(src)
-        if ok:
-            return ok, result
-        #
         ok, result = self.detect_today_or_tomorrow_HH_MM_am_pm(src)
         if ok:
             return ok, result
@@ -36,31 +32,20 @@ class TimeSanitizer(object):
         return False, dict(human_time=time_in_text, time=None)
     #
     #
-    def detect_today_or_tomorrow_HH_am_pm(self, tit):
-        mo = re.match(r'(today|tomorrow),?\s*([0-9]{1,2})(am|pm)', tit)
-        if mo:
-            period = mo.group(3)
-            #
-            hh_int = int(mo.group(2))
-            #
-            day = mo.group(1)
-            #
-            if hh_int < 24:
-                mytime = self.set_today_or_tomorrow_time(hh_int, period=period, day=day)
-                return True, dict(human_time=mytime.strftime(day.capitalize() + ', %I') + period, time=mytime)
-        return False, None
-    #
-    #
     def detect_today_or_tomorrow_HH_MM_am_pm(self, tit):
-        mo = re.match(r'(today|tomorrow),?\s*([0-9]{1,2}):([0-9]{1,2})(am|pm)', tit)
+        mo = re.match(r'(?P<day>today|tomorrow),?\s*(?P<hour>[0-9]{1,2})(:(?P<minute>[0-9]{1,2}))?(?P<period>am|pm)', tit)
         if mo:
-            period = mo.group(4)
+            day = mo.group('day')
             #
-            mm_int = int(mo.group(3))
+            hh_int = int(mo.group('hour'))
             #
-            hh_int = int(mo.group(2))
+            mm_str = mo.group('minute')
+            if mm_str is not None:
+                mm_int = int(mm_str)
+            else:
+                mm_int = 0
             #
-            day = mo.group(1)
+            period = mo.group('period')
             #
             if hh_int < 24 and mm_int < 60:
                 mytime = self.set_today_or_tomorrow_time(hh_int, minutes=mm_int, period=period, day=day)
@@ -69,20 +54,24 @@ class TimeSanitizer(object):
     #
     #
     def detect_yyyy_mm_dd_HH_MM_am_pm(self, tit):
-        mo = re.match(r'(\d{1,2})/(\d{1,2})/(\d{4}),?\s*([0-9]{1,2}):([0-9]{1,2})(am|pm)', tit)
+        mo = re.match(r'(?P<day>\d{1,2})/(?P<month>\d{1,2})/(?P<year>\d{4}),?\s*(?P<hour>[0-9]{1,2})(:(?P<minute>[0-9]{1,2}))?(?P<period>am|pm)', tit)
         if mo:
             #
-            day = int(mo.group(1))
+            day = int(mo.group('day'))
             #
-            month = int(mo.group(2))
+            month = int(mo.group('month'))
             #
-            year = int(mo.group(3))
+            year = int(mo.group('year'))
             #
-            hh_int = int(mo.group(4))
+            hh_int = int(mo.group('hour'))
             #
-            mm_int = int(mo.group(5))
+            mm_str = mo.group('minute')
+            if mm_str is not None:
+                mm_int = int(mm_str)
+            else:
+                mm_int = 0
             #
-            period = mo.group(6)
+            period = mo.group('period')
             #
             if hh_int < 24 and mm_int < 60:
                 try:
