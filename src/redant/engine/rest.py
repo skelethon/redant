@@ -84,6 +84,7 @@ class BearerAuth(requests.auth.AuthBase):
 class AuthBuilder(object):
     #
     __available = True
+    __name = None
     #
     ## Basic/Digest Authentication
     __basic_auth = None
@@ -95,7 +96,10 @@ class AuthBuilder(object):
     __credentials = None
     #
     #
-    def __init__(self, auth_args, **kwargs):
+    def __init__(self, name, auth_args, **kwargs):
+        assert isinstance(name, str), 'name must be a string'
+        self.__name = name
+        #
         assert isinstance(auth_args, dict), 'auth_args must be a dict'
         #
         self.__available = not 'enabled' in auth_args or auth_args['enabled']
@@ -169,7 +173,7 @@ class RestGuard(object):
         if isinstance(entrypoints, dict):
             for auth_name in entrypoints.keys():
                 auth_args = entrypoints[auth_name]
-                self.__auths[auth_name] = AuthBuilder(auth_args)
+                self.__auths[auth_name] = AuthBuilder(auth_name, auth_args)
                 if self.__auth_default is None:
                     self.__auth_default = auth_name
         pass
