@@ -26,7 +26,8 @@ class Controller(EngineBase):
 
 class Conversation(EngineBase):
     #
-    __user_id = None
+    __channel_code = None
+    __chatter_code = None
     __phone_number = None
     __context = dict()
     __persist = None
@@ -35,15 +36,17 @@ class Conversation(EngineBase):
     __flow = None
     #
     #
-    def __init__(self, phone_number, descriptor=None, **kwargs):
+    def __init__(self, channel_code, chatter_code, phone_number, descriptor=None, **kwargs):
         #
+        self.__channel_code = channel_code
+        self.__chatter_code = chatter_code
         self.__phone_number = phone_number
         #
         assert isinstance(descriptor, Descriptor), 'descriptor argument must be a Descriptor'
         self.__descriptor = descriptor
         self.__final_states = [ self.__descriptor.done_state, self.__descriptor.quit_state ]
         #
-        self.__flow = _Flow(conversation = self, phone_number = phone_number)
+        self.__flow = _Flow(conversation = self)
         #
         super(Conversation, self).__init__(**kwargs)
     #
@@ -52,6 +55,14 @@ class Conversation(EngineBase):
     def _context(self):
         return self.__context
     #
+    #
+    @property
+    def channel_code(self):
+        return self.__channel_code
+    #
+    @property
+    def chatter_code(self):
+        return self.__chatter_code
     #
     @property
     def phone_number(self):
@@ -318,10 +329,7 @@ class _Flow(object):
     __conversation = None
     __descriptor = None
     #
-    def __init__(self, conversation, phone_number):
-        #
-        if LOG.isEnabledFor(LL.DEBUG):
-            LOG.log(LL.DEBUG, 'PhoneNumber: [%s]' % phone_number)
+    def __init__(self, conversation):
         #
         #
         assert isinstance(conversation, Conversation), 'conversation argument must be a Conversation'
@@ -329,22 +337,30 @@ class _Flow(object):
         self.__descriptor = self.__conversation.descriptor
         #
         # load the latest conversation
-        current = ConversationModel.find_by_phone_number(phone_number)
+        current = ConversationModel.find_by__channel__chatter(conversation.channel_code, conversation.chatter_code)
         #
         # create one if not found
+        kwargs = dict(
+            channel_code=conversation.channel_code,
+            chatter_code=conversation.chatter_code,
+            phone_number=conversation.phone_number,
+            state=self.__descriptor.initial_state
+        )
+        conver_label = conversation.chatter_code + ' -> ' + conversation.channel_code
+        #
         if not current:
             if LOG.isEnabledFor(LL.DEBUG):
-                LOG.log(LL.DEBUG, 'The first conversation of [%s], create new persist object.' % phone_number)
-            current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
+                LOG.log(LL.DEBUG, 'The first conversation of [%s], create new persist object.' % conver_label)
+            current = ConversationModel(**kwargs).create()
         else:
             # check the state and timeout
             if self.hasExpired(current, self.__descriptor):
                 if LOG.isEnabledFor(LL.DEBUG):
-                    LOG.log(LL.DEBUG, 'The conversation[%s] has expired, create another' % phone_number)
-                current = ConversationModel(phone_number=phone_number, state=self.__descriptor.initial_state).create()
+                    LOG.log(LL.DEBUG, 'The conversation[%s] has expired, create another' % conver_label)
+                current = ConversationModel(**kwargs).create()
             else:
                 if LOG.isEnabledFor(LL.DEBUG):
-                    LOG.log(LL.DEBUG, 'The conversation[%s] is ok, continue ...' % phone_number)
+                    LOG.log(LL.DEBUG, 'The conversation[%s] is ok, continue ...' % conver_label)
             pass
         #
         #
@@ -358,7 +374,7 @@ class _Flow(object):
             initial=current.state)
         #
         if LOG.isEnabledFor(LL.DEBUG):
-            LOG.log(LL.DEBUG, 'A machine for [%s] has been created with state [%s]' % (phone_number, str(conversation.state)))
+            LOG.log(LL.DEBUG, 'A machine for [%s] has been created with state [%s]' % (conver_label, str(conversation.state)))
         #
         pass
     #

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+from redant import errors
 from redant.utils.database import sqldb as db
+from redant.models.channels import ChannelEntity
 from redant.models.chatters import ChatterEntity
 from redant.utils.object_util import json_dumps
 from redant.utils.string_util import generate_uuid
@@ -14,26 +16,46 @@ class ConversationModel(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     state = db.Column(db.String(32), nullable = False)
+    overall_status = db.Column(db.Integer(), nullable = False, default=0)
     #
     story = db.Column(db.JSON, nullable=True)
     phone_number = db.Column(db.String(16), nullable = True)
-    facebook_id = db.Column(db.String(36), nullable = True)
     #
-    chatter_id = db.Column(db.String(36), db.ForeignKey('chatters.id'), nullable=True)
+    chatter_code = db.Column(db.String(64), nullable = False)
+    chatter_id = db.Column(db.String(36), db.ForeignKey('chatters.chatter_id'), nullable=True)
     chatter = db.relationship('ChatterEntity', backref=db.backref('chatters', lazy='dynamic'))
+    #
+    channel_code = db.Column(db.String(64), nullable = False)
+    channel_id = db.Column(db.String(36), db.ForeignKey('channels.channel_id'), nullable=True)
+    channel = db.relationship('ChannelEntity', backref=db.backref('channels', lazy='dynamic'))
     #
     #
     def create(self):
-        if self.phone_number is not None:
-            chatter = ChatterEntity.find_by_phone_number(self.phone_number)
-            if chatter is None:
-                chatter = ChatterEntity(phone_number=self.phone_number)
-                chatter.create()
-                pass
-            self.chatter_id = chatter.id
+        #
+        if self.channel_code is None:
+            raise errors.ModelArgumentError('[channel_code] is None')
+        #
+        channel = ChannelEntity.find_by__channel_code(self.channel_code)
+        if channel is None:
+            raise errors.ChannelNotFoundError('channel[' + self.channel_code + '] not found')
+        self.channel_id = channel.channel_id
+        #
+        #
+        if self.chatter_code is None:
+            raise errors.ModelArgumentError('[chatter_code] is None')
+        #
+        chatter = ChatterEntity.find_by__chatter_code(self.chatter_code)
+        if chatter is None:
+            chatter = ChatterEntity(chatter_code=self.chatter_code, phone_number=self.phone_number)
+            chatter.create()
+            pass
+        self.chatter_id = chatter.chatter_id
+        #
+        #
         db.session.add(self)
         db.session.commit()
         return self
+    #
     #
     def save(self):
         try:
@@ -45,28 +67,39 @@ class ConversationModel(db.Model):
             return None, exception
     #
     #
-    def __init__(self, phone_number=None, facebook_id=None, state='begin', **kwargs):
+    def __init__(self, channel_code, chatter_code, phone_number=None, state='begin', **kwargs):
+        self.channel_code = channel_code
+        self.chatter_code = chatter_code
         self.phone_number = phone_number
-        self.facebook_id = facebook_id
         self.state = state
     #
     def __repr__(self):
-        return json_dumps(self, ['id', 'created_at', 'state', 'phone_number', 'facebook_id'])
+        return json_dumps(self, ['id', 'created_at', 'state', 'channel_code', 'chatter_code', 'phone_number'])
     #
     #
     @classmethod
-    def find_by_phone_number(cls, phone_number):
+    def find_by__channel__chatter(cls, channel_code, chatter_code):
         return cls.query\
-            .filter_by(phone_number = phone_number)\
+            .filter_by(channel_code = channel_code)\
+            .filter_by(chatter_code = chatter_code)\
             .order_by(desc(ConversationModel.created_at))\
             .first()
     #
     @classmethod
-    def find_by_user_id(cls, user_id):
-        return cls.query\
-            .filter_by(facebook_id = user_id)\
-            .order_by(desc(ConversationModel.created_at))\
-            .first()
+    def count_by__channel__chatter(cls, channel_code, chatter_code, overall_status=None, latest_created_time=None):
+        #
+        q = cls.query\
+            .filter_by(channel_code = channel_code)\
+            .filter_by(chatter_code = chatter_code)
+        #
+        if overall_status is not None:
+            q = q.filter_by(overall_status = overall_status)
+        #
+        if latest_created_time is not None:
+            q = q.filter(ConversationModel.created_at >= latest_created_time)
+        #
+        return q.count()
+
 
 class ConversationSchema(ModelSchema):
     class Meta(ModelSchema.Meta):
