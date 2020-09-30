@@ -42,7 +42,26 @@ class TimeSanitizer_detect_time_test(unittest.TestCase):
             self.assertTrue(mock_datetime.now.has_been_called())
     #
     #
-    
+    def test__detect_today_ok(self):
+        s = TimeSanitizer(timezone='Asia/Saigon')
+        with patch('redant.sanitizers.datetime.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 10, 1, hour=3, minute=30, second=52, microsecond=123456, tzinfo=None)
+            ok, o = s.detect_time('Today, 11am')
+            self.assertTrue(ok)
+            self.assertEqual(o['human_time'], 'Today, 11:00am')
+            self.assertEqual(print_datetime(o['time']), '2020-10-01T11:00:00.000000+0700')
+            self.assertTrue(mock_datetime.now.has_been_called())
+    #
+    #
+    def test__detect_tomorrow_ok(self):
+        s = TimeSanitizer(timezone='Asia/Singapore')
+        with patch('redant.sanitizers.datetime.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 10, 1, hour=3, minute=30, second=52, microsecond=123456, tzinfo=None)
+            ok, o = s.detect_time('tomorrow, 5pm')
+            self.assertTrue(ok)
+            self.assertEqual(o['human_time'], 'Tomorrow, 05:00pm')
+            self.assertEqual(print_datetime(o['time']), '2020-10-02T17:00:00.000000+0800')
+            self.assertTrue(mock_datetime.now.has_been_called())
     #
     #
     def test__detect_yyyy_mm_dd_HH_MM_am_pm__ok1(self):

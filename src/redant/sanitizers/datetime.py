@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 
 import re
-import pendulum
 import pytz
 
 from datetime import datetime, timedelta, tzinfo
+from redant.errors import InvalidTimeZoneError
 
 class TimeSanitizer(object):
     #
     def __init__(self, timezone=None):
         if isinstance(timezone, str):
             self.__timezone = pytz.timezone(timezone)
-        else:
-            self.__timezone = timezone
+            return
+        if not isinstance(timezone, tzinfo):
+            raise InvalidTimeZoneError('Invalid timezone: {}'.format(str(timezone)))
+        self.__timezone = timezone
     #
     #
     def detect_time(self, time_in_text, timezone=None):
@@ -25,7 +27,7 @@ class TimeSanitizer(object):
         src = time_in_text.lower()
         #
         if src == 'now':
-            return True, dict(human_time='Now', time=datetime.now().astimezone(timezone))
+            return True, dict(human_time='Now', time=datetime_now(timezone))
         #
         ok, result = self.detect_today_or_tomorrow_HH_MM_am_pm(src, timezone)
         if ok and result is not None:
@@ -55,7 +57,7 @@ class TimeSanitizer(object):
             #
             if hh_int < 24 and mm_int < 60:
                 try:
-                    mytime = self.set_today_or_tomorrow_time(hh_int, minutes=mm_int, period=period, day=day, timezone=timezone)
+                    mytime = self.set_today_or_tomorrow_time(hh_int, minute=mm_int, period=period, day=day, timezone=timezone)
                     return True, dict(human_time=mytime.strftime(day.capitalize() + ', %I:%M') + period, time=mytime)
                 except Exception as err:
                     return False, dict(human_time=tit, error=err)
@@ -86,7 +88,7 @@ class TimeSanitizer(object):
             #
             if hh_int < 24 and mm_int < 60:
                 try:
-                    mytime = datetime.utcnow().astimezone(timezone).replace(year=year, month=month, day=day,
+                    mytime = datetime_now(timezone).replace(year=year, month=month, day=day,
                             hour=hh_int, minute=mm_int, second=0, microsecond=0)
                     return True, dict(human_time=mytime.strftime('%d/%m/%Y, %I:%M') + period, time=mytime)
                 except ValueError as err:
@@ -94,16 +96,14 @@ class TimeSanitizer(object):
         return False, None
     #
     #
-    def set_today_or_tomorrow_time(self, hours, minutes=0, period=None, day='today', timezone=None):
-        if period == 'pm' and hours < 12:
-            hours = hours + 12
+    def set_today_or_tomorrow_time(self, hour=0, minute=0, period=None, day='today', timezone=None):
+        if period == 'pm' and hour < 12:
+            hour = hour + 12
         #
         if day == 'tomorrow':
-            begin = pendulum.tomorrow(timezone)
-        else:
-            begin = pendulum.today(timezone)
+            return self.__today_at(timezone, hour, minute) + timedelta(days=1)
         #
-        return begin + timedelta(hours=hours,minutes=minutes)
+        return self.__today_at(timezone, hour, minute)
     #
     #
     def __get_timezone(self, timezone=None):
@@ -112,3 +112,11 @@ class TimeSanitizer(object):
         if isinstance(timezone, str):
             return pytz.timezone(timezone)
         return timezone
+    #
+    #
+    def __today_at(self, timezone, hour=0, minute=0, second=0):
+        return datetime_now(timezone).replace(hour=hour, minute=minute, second=second, microsecond=0)
+
+
+def datetime_now(timezone):
+    return datetime.now().astimezone(timezone)

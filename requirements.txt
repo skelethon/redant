@@ -4,7 +4,6 @@ flask-marshmallow
 flask-sqlalchemy
 marshmallow-sqlalchemy
 pymysql
-pendulum
 prometheus_client
 prometheus_flask_exporter
 requests
