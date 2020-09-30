@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import pytz
+
+from datetime import datetime, timezone
 from redant import errors
 from redant.utils.database import sqldb as db
 from redant.models.channels import ChannelEntity
@@ -14,7 +17,8 @@ class ConversationEntity(db.Model):
     __tablename__ = 'conversations'
     #
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    creation_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now())
+    timezone = db.Column(db.String(36), nullable = False)
     state = db.Column(db.String(32), nullable = False)
     overall_status = db.Column(db.Integer(), nullable = False, default=0)
     #
@@ -40,6 +44,9 @@ class ConversationEntity(db.Model):
             raise errors.ChannelNotFoundError('channel[' + self.channel_code + '] not found')
         self.channel_id = channel.channel_id
         #
+        # timezone of the conservation
+        self.timezone = channel.timezone
+        #
         #
         if self.chatter_code is None:
             raise errors.ModelArgumentError('[chatter_code] is None')
@@ -50,6 +57,9 @@ class ConversationEntity(db.Model):
             chatter.create()
             pass
         self.chatter_id = chatter.chatter_id
+        #
+        # creation_time in UTC
+        self.creation_time = datetime.datetime.utcnow()
         #
         #
         db.session.add(self)
@@ -74,7 +84,20 @@ class ConversationEntity(db.Model):
         self.state = state
     #
     def __repr__(self):
-        return json_dumps(self, ['id', 'channel_code', 'chatter_code', 'created_at', 'state', 'overall_status', 'phone_number'])
+        return json_dumps(self, ['id', 'channel_code', 'chatter_code', 'creation_time', 'state', 'overall_status', 'phone_number', 'creation_time_on_client'])
+    #
+    #
+    @property
+    def creation_time_on_client(self):
+        if not isinstance(self.creation_time, datetime):
+            raise ValueError('[creation_time] is not a datetime')
+        return self.creation_time.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(self.timezone))
+    #
+    @creation_time_on_client.setter
+    def creation_time_on_client(self, value):
+        if not isinstance(value, datetime):
+            raise ValueError('assigned value is not a datetime')
+        self.creation_time = value.replace(tzinfo=pytz.timezone(self.timezone)).astimezone(timezone.utc)
     #
     #
     @classmethod
@@ -82,7 +105,7 @@ class ConversationEntity(db.Model):
         return cls.query\
             .filter_by(channel_code = channel_code)\
             .filter_by(chatter_code = chatter_code)\
-            .order_by(desc(ConversationEntity.created_at))\
+            .order_by(desc(ConversationEntity.creation_time))\
             .first()
     #
     @classmethod
@@ -96,7 +119,7 @@ class ConversationEntity(db.Model):
             q = q.filter_by(overall_status = overall_status)
         #
         if latest_created_time is not None:
-            q = q.filter(ConversationEntity.created_at >= latest_created_time)
+            q = q.filter(ConversationEntity.creation_time >= latest_created_time)
         #
         return q.count()
 

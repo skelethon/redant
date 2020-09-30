@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import pytz
+
 from abc import ABCMeta, abstractproperty, abstractmethod
 from redant.engine import EngineBase
 from redant.utils.function_util import is_callable, call_function
@@ -31,6 +33,7 @@ class Conversation(EngineBase):
     __phone_number = None
     __context = dict()
     __persist = None
+    __timezone = None
     __descriptor = None
     __final_states = []
     __flow = None
@@ -96,6 +99,19 @@ class Conversation(EngineBase):
                     LOG.log(LL.DEBUG, 'error on loading the context: %s' % str(err))
         #
         return ref
+    #
+    #
+    @property
+    def timezone(self):
+        if self.__timezone is None:
+            if isinstance(self.__persist, ConversationEntity):
+                try:
+                    self.__timezone = pytz.timezone(self.__persist.timezone)
+                except pytz.exceptions.UnknownTimeZoneError as err:
+                    raise errors.InvalidTimeZoneError('Unknown timezone[' + str(self.__persist.timezone) + ']')
+            if self.__timezone is None:
+                raise errors.InvalidTimeZoneError('timezone is None')
+        return self.__timezone
     #
     #
     @property

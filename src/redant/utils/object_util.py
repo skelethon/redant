@@ -17,7 +17,7 @@ def pick_object_fields(obj, field_names=[]):
 
 def json_converter(o):
     if isinstance(o, datetime.datetime):
-        return o.__str__()
+        return o.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
     return o
 
 def json_dumps(obj, field_names=[]):

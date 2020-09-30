@@ -11,3 +11,7 @@ class ModelArgumentError(RedantError):
 class ChannelNotFoundError(RedantError):
     def __init__(self, *args, **kwargs):
         super(ChannelNotFoundError, self).__init__(self,*args,**kwargs)
+
+class InvalidTimeZoneError(RedantError):
+    def __init__(self, *args, **kwargs):
+        super(InvalidTimeZoneError, self).__init__(self,*args,**kwargs)
