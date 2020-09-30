@@ -5,7 +5,7 @@ from redant.engine import EngineBase
 from redant.utils.function_util import is_callable, call_function
 from redant.utils.logging import getLogger, LogLevel as LL
 from redant.utils.object_util import json_dumps, json_loads
-from redant.models.conversations import ConversationModel, ConversationSchema
+from redant.models.conversations import ConversationEntity, ConversationSchema
 from transitions import Machine
 
 LOG = getLogger(__name__)
@@ -81,7 +81,7 @@ class Conversation(EngineBase):
     @persist.setter
     def persist(self, ref):
         #
-        assert isinstance(ref, ConversationModel), 'object must be a ConversationModel'
+        assert isinstance(ref, ConversationEntity), 'object must be a ConversationEntity'
         self.__persist = ref
         #
         story = self.__persist.story
@@ -337,7 +337,7 @@ class _Flow(object):
         self.__descriptor = self.__conversation.descriptor
         #
         # load the latest conversation
-        current = ConversationModel.find_by__channel__chatter(conversation.channel_code, conversation.chatter_code)
+        current = ConversationEntity.find_by__channel__chatter(conversation.channel_code, conversation.chatter_code)
         #
         # create one if not found
         kwargs = dict(
@@ -351,13 +351,13 @@ class _Flow(object):
         if not current:
             if LOG.isEnabledFor(LL.DEBUG):
                 LOG.log(LL.DEBUG, 'The first conversation of [%s], create new persist object.' % conver_label)
-            current = ConversationModel(**kwargs).create()
+            current = ConversationEntity(**kwargs).create()
         else:
             # check the state and timeout
             if self.hasExpired(current, self.__descriptor):
                 if LOG.isEnabledFor(LL.DEBUG):
                     LOG.log(LL.DEBUG, 'The conversation[%s] has expired, create another' % conver_label)
-                current = ConversationModel(**kwargs).create()
+                current = ConversationEntity(**kwargs).create()
             else:
                 if LOG.isEnabledFor(LL.DEBUG):
                     LOG.log(LL.DEBUG, 'The conversation[%s] is ok, continue ...' % conver_label)

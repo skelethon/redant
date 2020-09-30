@@ -10,7 +10,7 @@ from marshmallow_sqlalchemy import ModelSchema
 from marshmallow import fields
 from sqlalchemy import desc
 
-class ConversationModel(db.Model):
+class ConversationEntity(db.Model):
     __tablename__ = 'conversations'
     #
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
@@ -74,7 +74,7 @@ class ConversationModel(db.Model):
         self.state = state
     #
     def __repr__(self):
-        return json_dumps(self, ['id', 'created_at', 'state', 'channel_code', 'chatter_code', 'phone_number'])
+        return json_dumps(self, ['id', 'channel_code', 'chatter_code', 'created_at', 'state', 'overall_status', 'phone_number'])
     #
     #
     @classmethod
@@ -82,7 +82,7 @@ class ConversationModel(db.Model):
         return cls.query\
             .filter_by(channel_code = channel_code)\
             .filter_by(chatter_code = chatter_code)\
-            .order_by(desc(ConversationModel.created_at))\
+            .order_by(desc(ConversationEntity.created_at))\
             .first()
     #
     @classmethod
@@ -96,13 +96,13 @@ class ConversationModel(db.Model):
             q = q.filter_by(overall_status = overall_status)
         #
         if latest_created_time is not None:
-            q = q.filter(ConversationModel.created_at >= latest_created_time)
+            q = q.filter(ConversationEntity.created_at >= latest_created_time)
         #
         return q.count()
 
 
 class ConversationSchema(ModelSchema):
     class Meta(ModelSchema.Meta):
-        model = ConversationModel
+        model = ConversationEntity
         sqla_session = db.session
     id = fields.String(dump_only=True)
