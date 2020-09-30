@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from redant.utils.database import sqldb as db
+from redant.models.chatters import ChatterEntity
 from redant.utils.object_util import json_dumps
 from redant.utils.string_util import generate_uuid
 from marshmallow_sqlalchemy import ModelSchema
@@ -18,10 +19,18 @@ class ConversationModel(db.Model):
     phone_number = db.Column(db.String(16), nullable = True)
     facebook_id = db.Column(db.String(36), nullable = True)
     #
-    # chatter_id = db.Column(db.String(36), db.ForeignKey('chatters.id'))
-    # chatter = db.relationship('ChatterEntity', backref=db.backref('chatters', lazy='dynamic'))
+    chatter_id = db.Column(db.String(36), db.ForeignKey('chatters.id'), nullable=True)
+    chatter = db.relationship('ChatterEntity', backref=db.backref('chatters', lazy='dynamic'))
+    #
     #
     def create(self):
+        if self.phone_number is not None:
+            chatter = ChatterEntity.find_by_phone_number(self.phone_number)
+            if chatter is None:
+                chatter = ChatterEntity(phone_number=self.phone_number)
+                chatter.create()
+                pass
+            self.chatter_id = chatter.id
         db.session.add(self)
         db.session.commit()
         return self
@@ -35,6 +44,7 @@ class ConversationModel(db.Model):
             db.session.rollback()
             return None, exception
     #
+    #
     def __init__(self, phone_number=None, facebook_id=None, state='begin', **kwargs):
         self.phone_number = phone_number
         self.facebook_id = facebook_id
@@ -42,6 +52,7 @@ class ConversationModel(db.Model):
     #
     def __repr__(self):
         return json_dumps(self, ['id', 'created_at', 'state', 'phone_number', 'facebook_id'])
+    #
     #
     @classmethod
     def find_by_phone_number(cls, phone_number):

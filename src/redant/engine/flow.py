@@ -87,6 +87,15 @@ class Conversation(EngineBase):
         return ref
     #
     #
+    @property
+    def _banned(self):
+        if self.__persist is None:
+            return False
+        if self.__persist.chatter is None:
+            return False
+        return self.__persist.chatter.banned == True
+    #
+    #
     def save_dialog(self):
         #
         if self.__persist is None:
