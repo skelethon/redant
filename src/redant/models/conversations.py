@@ -59,7 +59,7 @@ class ConversationEntity(db.Model):
         self.chatter_id = chatter.chatter_id
         #
         # creation_time in UTC
-        self.creation_time = datetime.datetime.utcnow()
+        self.creation_time = datetime.utcnow()
         #
         #
         db.session.add(self)
@@ -109,7 +109,7 @@ class ConversationEntity(db.Model):
             .first()
     #
     @classmethod
-    def count_by__channel__chatter(cls, channel_code, chatter_code, overall_status=None, latest_created_time=None):
+    def count_by__channel__chatter(cls, channel_code, chatter_code, overall_status=None, latest_creation_time=None):
         #
         q = cls.query\
             .filter_by(channel_code = channel_code)\
@@ -118,8 +118,8 @@ class ConversationEntity(db.Model):
         if overall_status is not None:
             q = q.filter_by(overall_status = overall_status)
         #
-        if latest_created_time is not None:
-            q = q.filter(ConversationEntity.creation_time >= latest_created_time)
+        if latest_creation_time is not None:
+            q = q.filter(ConversationEntity.creation_time >= latest_creation_time)
         #
         return q.count()
 

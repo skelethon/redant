@@ -12,7 +12,7 @@ class TimeSanitizer(object):
         if isinstance(timezone, str):
             self.__timezone = pytz.timezone(timezone)
             return
-        if not isinstance(timezone, tzinfo):
+        if timezone is not None and not isinstance(timezone, tzinfo):
             raise InvalidTimeZoneError('Invalid timezone: {}'.format(str(timezone)))
         self.__timezone = timezone
     #

@@ -3,6 +3,7 @@
 import pytz
 
 from abc import ABCMeta, abstractproperty, abstractmethod
+from datetime import datetime, timedelta
 from redant.engine import EngineBase
 from redant.utils.function_util import is_callable, call_function
 from redant.utils.logging import getLogger, LogLevel as LL
@@ -121,6 +122,22 @@ class Conversation(EngineBase):
         if self.__persist.chatter is None:
             return False
         return self.__persist.chatter.banned == True
+    #
+    #
+    def _count_cancellations(self, range_size=1, range_unit='hours'):
+        #
+        tdargs = dict()
+        tdargs[range_unit] = range_size
+        #
+        latest_creation_time = datetime.utcnow() - timedelta(**tdargs)
+        r = ConversationEntity.count_by__channel__chatter(
+            channel_code=self.channel_code,
+            chatter_code=self.chatter_code,
+            overall_status=-2,
+            latest_creation_time=latest_creation_time
+        )
+        #
+        return r
     #
     #
     def save_dialog(self):
