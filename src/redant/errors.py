@@ -15,3 +15,19 @@ class ChannelNotFoundError(RedantError):
 class InvalidTimeZoneError(RedantError):
     def __init__(self, *args, **kwargs):
         super(InvalidTimeZoneError, self).__init__(self,*args,**kwargs)
+
+class RestInvocationError(RedantError):
+    def __init__(self, *args, **kwargs):
+        super(RestInvocationError, self).__init__(self,*args,**kwargs)
+
+class RestProcessingError(RedantError):
+    def __init__(self, *args, **kwargs):
+        super(RestProcessingError, self).__init__(self,*args,**kwargs)
+
+class RestStatusCodeError(RedantError):
+    def __init__(self, *args, **kwargs):
+        super(RestStatusCodeError, self).__init__(self,*args,**kwargs)
+
+class RestReturnBodyError(RedantError):
+    def __init__(self, *args, **kwargs):
+        super(RestReturnBodyError, self).__init__(self,*args,**kwargs)

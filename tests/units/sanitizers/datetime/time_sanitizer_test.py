@@ -38,7 +38,7 @@ class TimeSanitizer_detect_time_test(unittest.TestCase):
             ok, o = s.detect_time('Now')
             self.assertTrue(ok)
             self.assertEqual(o['human_time'], 'Now')
-            self.assertEqual(print_datetime(o['time']), '2020-10-01T09:15:00.000000+0700')
+            self.assertEqual(o['time'], '2020-10-01T09:15:00.000000+0700')
             self.assertTrue(mock_datetime.now.has_been_called())
     #
     #
@@ -49,7 +49,7 @@ class TimeSanitizer_detect_time_test(unittest.TestCase):
             ok, o = s.detect_time('Today, 11am')
             self.assertTrue(ok)
             self.assertEqual(o['human_time'], 'Today, 11:00am')
-            self.assertEqual(print_datetime(o['time']), '2020-10-01T11:00:00.000000+0700')
+            self.assertEqual(o['time'], '2020-10-01T11:00:00.000000+0700')
             self.assertTrue(mock_datetime.now.has_been_called())
     #
     #
@@ -60,7 +60,7 @@ class TimeSanitizer_detect_time_test(unittest.TestCase):
             ok, o = s.detect_time('tomorrow, 5pm')
             self.assertTrue(ok)
             self.assertEqual(o['human_time'], 'Tomorrow, 05:00pm')
-            self.assertEqual(print_datetime(o['time']), '2020-10-02T17:00:00.000000+0800')
+            self.assertEqual(o['time'], '2020-10-02T17:00:00.000000+0800')
             self.assertTrue(mock_datetime.now.has_been_called())
     #
     #
@@ -69,15 +69,11 @@ class TimeSanitizer_detect_time_test(unittest.TestCase):
         ok, o = s.detect_time('10/12/2020, 7pm')
         self.assertTrue(ok)
         self.assertEqual(o['human_time'], '10/12/2020, 07:00pm')
-        self.assertEqual(print_datetime(o['time']), '2020-12-10T19:00:00.000000+0800')
+        self.assertEqual(o['time'], '2020-12-10T19:00:00.000000+0800')
     #
     def test__detect_yyyy_mm_dd_HH_MM_am_pm__ok2(self):
         s = TimeSanitizer(timezone='Asia/Hong_Kong')
         ok, o = s.detect_time('10/12/2020, 21:48pm')
         self.assertTrue(ok)
         self.assertEqual(o['human_time'], '10/12/2020, 09:48pm')
-        self.assertEqual(print_datetime(o['time']), '2020-12-10T21:48:00.000000+0800')
-
-
-def print_datetime(dt):
-    return dt.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+        self.assertEqual(o['time'], '2020-12-10T21:48:00.000000+0800')

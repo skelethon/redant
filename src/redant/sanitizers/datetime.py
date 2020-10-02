@@ -8,7 +8,10 @@ from redant.errors import InvalidTimeZoneError
 
 class TimeSanitizer(object):
     #
-    def __init__(self, timezone=None):
+    def __init__(self, timezone=None, timeformat='%Y-%m-%dT%H:%M:%S.%f%z'):
+        #
+        self.__timeformat = timeformat
+        #
         if isinstance(timezone, str):
             self.__timezone = pytz.timezone(timezone)
             return
@@ -27,7 +30,7 @@ class TimeSanitizer(object):
         src = time_in_text.lower()
         #
         if src == 'now':
-            return True, dict(human_time='Now', time=datetime_now(timezone))
+            return True, dict(human_time='Now', time=datetime_now(timezone).strftime(self.__timeformat))
         #
         ok, result = self.detect_today_or_tomorrow_HH_MM_am_pm(src, timezone)
         if ok and result is not None:
@@ -58,7 +61,7 @@ class TimeSanitizer(object):
             if hh_int < 24 and mm_int < 60:
                 try:
                     mytime = self.set_today_or_tomorrow_time(hh_int, minute=mm_int, period=period, day=day, timezone=timezone)
-                    return True, dict(human_time=mytime.strftime(day.capitalize() + ', %I:%M') + period, time=mytime)
+                    return True, dict(human_time=mytime.strftime(day.capitalize() + ', %I:%M') + period, time=mytime.strftime(self.__timeformat))
                 except Exception as err:
                     return False, dict(human_time=tit, error=err)
         return False, None
@@ -90,7 +93,7 @@ class TimeSanitizer(object):
                 try:
                     mytime = datetime_now(timezone).replace(year=year, month=month, day=day,
                             hour=hh_int, minute=mm_int, second=0, microsecond=0)
-                    return True, dict(human_time=mytime.strftime('%d/%m/%Y, %I:%M') + period, time=mytime)
+                    return True, dict(human_time=mytime.strftime('%d/%m/%Y, %I:%M') + period, time=mytime.strftime(self.__timeformat))
                 except ValueError as err:
                     return False, dict(human_time=tit, error=err)
         return False, None

@@ -114,6 +114,10 @@ class Conversation(EngineBase):
                 raise errors.InvalidTimeZoneError('timezone is None')
         return self.__timezone
     #
+    @property
+    def timezone_name(self):
+        return self.timezone.tzname(None)
+    #
     #
     @property
     def _banned(self):

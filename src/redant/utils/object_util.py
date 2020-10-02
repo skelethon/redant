@@ -20,10 +20,10 @@ def json_converter(o):
         return o.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
     return o
 
-def json_dumps(obj, field_names=[]):
+def json_dumps(obj, field_names=[], indent=None):
     if isinstance(obj, str):
         return obj
-    return json.dumps(pick_object_fields(obj, field_names), default = json_converter, ensure_ascii=False)
+    return json.dumps(pick_object_fields(obj, field_names), default = json_converter, ensure_ascii=False, indent=indent)
 
 def json_loads(data):
     if not isinstance(data, str):
