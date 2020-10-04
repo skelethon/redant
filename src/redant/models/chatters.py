@@ -12,15 +12,17 @@ class ChatterEntity(db.Model):
     notes = db.Column(db.JSON, nullable=True)
     #
     phone_number = db.Column(db.String(16), nullable = True)
+    email = db.Column(db.String(120), unique = False, nullable = True)
     first_name = db.Column(db.String(120), unique = False, nullable = True)
     last_name = db.Column(db.String(120), unique = False, nullable = True)
     banned = db.Column(db.Boolean(), nullable = True)
     #
     #
-    def __init__(self, chatter_code, phone_number=None,
+    def __init__(self, chatter_code, phone_number=None, email=None,
             first_name=None, last_name=None, notes=None, **kwargs):
         self.chatter_code = chatter_code
         self.phone_number = phone_number
+        self.email = email
         self.first_name = first_name
         self.last_name = last_name
         self.notes = notes

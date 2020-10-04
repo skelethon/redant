@@ -12,6 +12,8 @@ from redant.models.conversations import ConversationEntity, ConversationSchema
 from transitions import Machine
 
 LOG = getLogger(__name__)
+SILENT_MESSAGE = (None, None)
+
 
 class Controller(EngineBase):
     #
@@ -109,7 +111,7 @@ class Conversation(EngineBase):
                 try:
                     self.__timezone = pytz.timezone(self.__persist.timezone)
                 except pytz.exceptions.UnknownTimeZoneError as err:
-                    raise errors.InvalidTimeZoneError('Unknown timezone[' + str(self.__persist.timezone) + ']')
+                    raise errors.InvalidTimeZoneError('Unknown timezone[%s]' % str(self.__persist.timezone))
             if self.__timezone is None:
                 raise errors.InvalidTimeZoneError('timezone is None')
         return self.__timezone
@@ -118,6 +120,30 @@ class Conversation(EngineBase):
     def timezone_name(self):
         return self.timezone.tzname(None)
     #
+    #
+    @property
+    def _email(self):
+        if self.__persist is None:
+            return None
+        if self.__persist.chatter is None:
+            return None
+        return self.__persist.chatter.email
+    #
+    @property
+    def _first_name(self):
+        if self.__persist is None:
+            return None
+        if self.__persist.chatter is None:
+            return None
+        return self.__persist.chatter.first_name
+    #
+    @property
+    def _last_name(self):
+        if self.__persist is None:
+            return None
+        if self.__persist.chatter is None:
+            return None
+        return self.__persist.chatter.last_name
     #
     @property
     def _banned(self):
@@ -160,11 +186,11 @@ class Conversation(EngineBase):
             self.__persist.save()
             #
             if LOG.isEnabledFor(LL.DEBUG):
-                LOG.log(LL.DEBUG, 'Logging current dialog successfully: %s' % story_json)
+                LOG.log(LL.DEBUG, 'Logging current dialog successfully: %s', story_json)
             return self
         except Exception as err:
             if LOG.isEnabledFor(LL.DEBUG):
-                LOG.log(LL.DEBUG, 'Logging current dialog failed, error: %s' % str(err))
+                LOG.log(LL.DEBUG, 'Logging current dialog failed, error: %s', str(err))
             raise err
         pass
     #
@@ -181,11 +207,11 @@ class Conversation(EngineBase):
             self.__persist.save()
             #
             if LOG.isEnabledFor(LL.DEBUG):
-                LOG.log(LL.DEBUG, 'Logging farewell event successfully: %s' % story_json)
+                LOG.log(LL.DEBUG, 'Logging stop event successfully: %s', story_json)
             return self
         except Exception as err:
             if LOG.isEnabledFor(LL.DEBUG):
-                LOG.log(LL.DEBUG, 'Logging farewell event failed, error: %s' % str(err))
+                LOG.log(LL.DEBUG, 'Logging stop event failed, error: %s', str(err))
             raise err
     #
     #
@@ -197,6 +223,40 @@ class Conversation(EngineBase):
         if force_quit:
             self.goodbye()
             return reply_on_quit
+        #
+        ## Cancellation
+        #
+        if self.__is_cancellation_confirming:
+            #
+            matched, msgs = self._cancellation_accepted
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, '_cancellation_accepted -> [%s]: %s', str(matched), str(msgs))
+            if matched:
+                self.__on_cancellation_accepted()
+                return msgs
+            #
+            matched, msgs = self._cancellation_rejected
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, '_cancellation_rejected -> [%s]: %s', str(matched), str(msgs))
+            if matched:
+                self.__on_cancellation_rejected()
+                return msgs
+            #
+            return self._cancellation_prompt
+        #
+        canreq, reply_on_canreq = self._cancellation_requested
+        if canreq:
+            self.__on_cancellation_requested()
+            return reply_on_canreq
+        #
+        ##
+        #
+        guide_matched, guide_content = self._help
+        if guide_matched:
+            guide_func = 'help__' + self.state
+            if is_callable(guide_func, self):
+                return call_function(guide_func, self)
+            return guide_content
         #
         ## normal flow
         #
@@ -252,7 +312,56 @@ class Conversation(EngineBase):
     #
     @property
     def _force_quit(self):
-        return False, (None, None)
+        return False, SILENT_MESSAGE
+    #
+    #
+    @property
+    def _cancellation_requested(self):
+        return False, SILENT_MESSAGE
+    #
+    def __on_cancellation_requested(self):
+        return self.__switch_cancellation_status(-1)
+    #
+    @property
+    def __is_cancellation_confirming(self):
+        return self.__persist.overall_status == -1
+    #
+    @property
+    def _cancellation_accepted(self):
+        return False, SILENT_MESSAGE
+    #
+    def __on_cancellation_accepted(self):
+        return self.__switch_cancellation_status(-2)
+    #
+    @property
+    def _cancellation_rejected(self):
+        return False, SILENT_MESSAGE
+    #
+    def __on_cancellation_rejected(self):
+        return self.__switch_cancellation_status(0)
+    #
+    @property
+    def _cancellation_prompt(self):
+        return SILENT_MESSAGE
+    #
+    def __switch_cancellation_status(self, status):
+        try:
+            self.__persist.overall_status = status
+            #
+            self.__persist.save()
+            #
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, '__switch_cancellation_status(%s) action has done successfully' % str(status))
+            return self
+        except Exception as err:
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, '__switch_cancellation_status action has failed, error: %s' % str(err))
+            raise err
+    #
+    #
+    @property
+    def _help(self):
+        return False, SILENT_MESSAGE
     #
     #
     @classmethod
@@ -415,6 +524,13 @@ class _Flow(object):
         #
         pass
     #
+    def __has_cancelled(self, persist):
+        if persist.overall_status <= -2:
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'The user has cancelled the task')
+            return True
+        return False
+    #
     def __has_done(self, persist):
         if persist.state == self.__descriptor.done_state:
             if LOG.isEnabledFor(LL.DEBUG):
@@ -438,4 +554,9 @@ class _Flow(object):
         return False
     #
     def hasExpired(self, persist, descriptor, timeout=3600*10):
-        return any([self.__has_done(persist), self.__has_quit(persist), self.__is_invalid_state(persist)])
+        return any([
+            self.__has_cancelled(persist),
+            self.__has_done(persist),
+            self.__has_quit(persist),
+            self.__is_invalid_state(persist)
+        ])
