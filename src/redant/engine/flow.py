@@ -434,13 +434,13 @@ class Descriptor(EngineBase):
             cls.__assertListItem(transition, 'after', 'save_dialog', position=0)
             cls.__assertListItem(transition, 'after', 'transition_after')
             #
+            if 'reply' in transition:
+                replies[transition['source'] + '__' + transition['target']] = transition['reply']
+                del transition['reply']
+            #
             if 'target' in transition:
                 transition['dest'] = transition['target']
                 del transition['target']
-            #
-            if 'reply' in transition:
-                replies[transition['source'] + '__' + transition['dest']] = transition['reply']
-                del transition['reply']
         #
         return transitions, replies
     #
