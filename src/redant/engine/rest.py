@@ -202,7 +202,9 @@ class RestInvoker(object):
         #
         self.__method = entrypoint['method'] if 'method' in entrypoint else 'GET'
         #
-        self.__data = entrypoint['data'] if 'data' in entrypoint else None
+        self.__body = entrypoint['body'] if 'body' in entrypoint else None
+        #
+        self.__body_as_json = not ('body_as_json' in entrypoint and entrypoint['body_as_json'] is False)
         #
         self.__i_transformer = RestInvoker.__extractCallable(entrypoint, 'i_transformer')
         self.__o_transformer = RestInvoker.__extractCallable(entrypoint, 'o_transformer')
@@ -217,8 +219,16 @@ class RestInvoker(object):
             if auth is not None:
                 kwargs['auth'] = auth
         #
-        if 'data' not in kwargs and self.__data is not None:
-            kwargs['data'] = self.__data
+        if 'body' not in kwargs and self.__body is not None:
+            kwargs['body'] = self.__body
+        #
+        if 'body' in kwargs:
+            if self.__body_as_json:
+                kwargs['json'] = kwargs['body']
+            else:
+                kwargs['data'] = kwargs['body']
+            #
+            del kwargs['body']
         #
         r = requests.request(self.__method, self.__url, **kwargs)
         try:
@@ -245,7 +255,7 @@ class RestInvoker(object):
     def _i_transformer(data=None):
         if data is None:
             return dict()
-        return dict(data=data)
+        return dict(body=data)
     #
     def _o_transformer(body, status_code, response=None):
         return body
