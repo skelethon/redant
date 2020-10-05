@@ -6,8 +6,10 @@ import threading
 
 from abc import abstractmethod
 from redant.engine import EngineBase
-from redant.utils.logging import getLogger, LogLevel as LL
+from redant.utils.dict_util import CaseInsensitiveDict
+from redant.utils.logging import getLogger, getRequestId, LogLevel as LL
 from redant.utils.net_util import url_build
+from redant.utils.object_util import json_dumps
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 BASIC_AUTH = 'basic'
@@ -202,6 +204,8 @@ class RestInvoker(object):
         #
         self.__method = entrypoint['method'] if 'method' in entrypoint else 'GET'
         #
+        self.__headers = entrypoint['headers'] if 'headers' in entrypoint else None
+        #
         self.__body = entrypoint['body'] if 'body' in entrypoint else None
         #
         self.__body_as_json = not ('body_as_json' in entrypoint and entrypoint['body_as_json'] is False)
@@ -230,6 +234,13 @@ class RestInvoker(object):
             #
             del kwargs['body']
         #
+        kwargs = self.__merge_default_headers(kwargs)
+        #
+        kwargs = self.__add_request_id(kwargs)
+        #
+        if LOG.isEnabledFor(LL.VERBOSE):
+            LOG.log(LL.VERBOSE, 'REST invocation parameters: %s', str(kwargs))
+        #
         r = requests.request(self.__method, self.__url, **kwargs)
         try:
             body = r.json()
@@ -240,6 +251,34 @@ class RestInvoker(object):
     #
     #
     def sanitize(self, opts=dict()):
+        return opts
+    #
+    #
+    def __merge_default_headers(self, opts=None):
+        if not isinstance(opts, dict):
+            return opts
+        #
+        if 'headers' in opts:
+            if isinstance(opts['headers'], dict):
+                headers = opts['headers'] = CaseInsensitiveDict(opts['headers'])
+            else:
+                headers = None
+        else:
+            headers = opts['headers'] = CaseInsensitiveDict()
+        #
+        if headers is not None:
+            if isinstance(self.__headers, dict):
+                for key in self.__headers.keys():
+                    if key not in headers or headers[key] is None:
+                        headers[key] = self.__headers[key]
+        #
+        return opts
+    #
+    #
+    def __add_request_id(self, opts=None):
+        if isinstance(opts, dict):
+            if 'headers' in opts and isinstance(opts['headers'], dict):
+                opts['headers']['X-Request-Id'] = getRequestId()
         return opts
     #
     #

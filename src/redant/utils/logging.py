@@ -4,18 +4,26 @@ import logging
 import os
 from flask import has_request_context, request
 from flask.logging import default_handler
+from flask_log_request_id import RequestID, RequestIDLogFilter, current_request_id
 
-logFormater = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logFormater = logging.Formatter('%(asctime)s - %(request_id)s - %(levelname)s - %(name)s - %(message)s')
 
 streamHandler = logging.StreamHandler()
 streamHandler.setLevel(logging.DEBUG)
 streamHandler.setFormatter(logFormater)
+streamHandler.addFilter(RequestIDLogFilter())
+
+def reqid_hook(app):
+    RequestID(app)
 
 def getLogger(name):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(streamHandler)
     return logger
+
+def getRequestId():
+    return current_request_id()
 
 def disableFlaskLog(app):
     logger = logging.getLogger('werkzeug')

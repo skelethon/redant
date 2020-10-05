@@ -1,5 +1,6 @@
 codetags
 flask
+flask_log_request_id
 flask-marshmallow
 flask-sqlalchemy
 marshmallow-sqlalchemy
