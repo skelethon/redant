@@ -32,11 +32,14 @@ class RestClient(EngineBase):
         mappings = self.mappings
         assert isinstance(mappings, dict), "mappings must be a dict"
         #
+        commons = mappings['commons'] if 'commons' in mappings else {}
+        assert isinstance(commons, dict), "mappings['commons'] must be a dict"
+        #
         entrypoints = mappings['entrypoints'] if 'entrypoints' in mappings else []
         assert isinstance(entrypoints, list), "mappings['entrypoints'] must be a list"
         #
         for entrypoint in entrypoints:
-            self.__invokers[entrypoint["name"]] = RestInvoker(entrypoint=entrypoint, guard=self.__guard)
+            self.__invokers[entrypoint["name"]] = RestInvoker(entrypoint=entrypoint, commons=commons, guard=self.__guard)
         #
         super(RestClient, self).__init__(*args, **kwargs)
     #
@@ -191,7 +194,7 @@ class RestGuard(object):
 class RestInvoker(object):
     #
     #
-    def __init__(self, entrypoint, guard=None, **kwargs):
+    def __init__(self, entrypoint, commons=None, guard=None, **kwargs):
         self.__entrypoint = entrypoint
         self.__guard = guard
         #
@@ -200,18 +203,29 @@ class RestInvoker(object):
         if isinstance(entrypoint['url'], str):
             self.__url = entrypoint['url']
         elif isinstance(entrypoint['url'], dict):
+            if commons is not None and 'url' in commons and isinstance(commons['url'], dict):
+                common_url = commons['url']
+                for key in common_url.keys():
+                    if key not in entrypoint['url']:
+                        entrypoint['url'][key] = common_url[key]
             self.__url = url_build(**entrypoint['url'])
         #
         self.__method = entrypoint['method'] if 'method' in entrypoint else 'GET'
         #
-        self.__headers = entrypoint['headers'] if 'headers' in entrypoint else None
+        self.__headers = entrypoint['headers'] if 'headers' in entrypoint else {}
+        if commons is not None and 'headers' in commons and isinstance(commons['headers'], dict):
+            self.__headers = CaseInsensitiveDict(self.__headers)
+            common_headers = commons['headers']
+            for key in common_headers.keys():
+                if key not in self.__headers:
+                    self.__headers[key] = common_headers[key]
         #
         self.__body = entrypoint['body'] if 'body' in entrypoint else None
         #
         self.__body_as_json = not ('body_as_json' in entrypoint and entrypoint['body_as_json'] is False)
         #
-        self.__i_transformer = RestInvoker.__extractCallable(entrypoint, 'i_transformer')
-        self.__o_transformer = RestInvoker.__extractCallable(entrypoint, 'o_transformer')
+        self.__i_transformer = RestInvoker.__extractCallable('i_transformer', entrypoint, commons)
+        self.__o_transformer = RestInvoker.__extractCallable('o_transformer', entrypoint, commons)
     #
     #
     def invoke(self, *args, **kwargs):
@@ -283,9 +297,11 @@ class RestInvoker(object):
     #
     #
     @classmethod
-    def __extractCallable(cls, entrypoint, name, defaultFunc=None):
+    def __extractCallable(cls, name, entrypoint, commons=None, defaultFunc=None):
         if name in entrypoint and callable(entrypoint[name]):
             return entrypoint[name]
+        if commons is not None and name in commons and callable(commons[name]):
+            return commons[name]
         if callable(defaultFunc):
             return defaultFunc
         return getattr(cls, '_' + name)

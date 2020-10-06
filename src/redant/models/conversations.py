@@ -109,6 +109,14 @@ class ConversationEntity(db.Model):
             .first()
     #
     @classmethod
+    def find_by__channel__state(cls, channel_code, state):
+        return cls.query\
+            .filter_by(channel_code = channel_code)\
+            .filter_by(state = state)\
+            .order_by(desc(ConversationEntity.creation_time))\
+            .first()
+    #
+    @classmethod
     def count_by__channel__chatter(cls, channel_code, chatter_code, overall_status=None, latest_creation_time=None):
         #
         q = cls.query\

@@ -2,6 +2,6 @@
 
 from urllib.parse import urlparse, urlunparse, ParseResult
 
-def url_build(scheme='https', hostname='', path='', params='', query='', fragment=''):
-    parts = ParseResult(scheme=scheme, netloc=hostname, path=path, params=params, query=query, fragment=fragment)
+def url_build(scheme='https', host='', path='', params='', query='', fragment=''):
+    parts = ParseResult(scheme=scheme, netloc=host, path=path, params=params, query=query, fragment=fragment)
     return urlunparse(parts)
