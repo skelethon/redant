@@ -110,11 +110,20 @@ class ConversationEntity(db.Model):
     #
     @classmethod
     def find_by__channel__state(cls, channel_code, state):
-        return cls.query\
-            .filter_by(channel_code = channel_code)\
-            .filter_by(state = state)\
-            .order_by(desc(ConversationEntity.creation_time))\
-            .first()
+        #
+        q = cls.query\
+            .filter_by(channel_code = channel_code)
+        #
+        if isinstance(state, str):
+            q = q.filter_by(state = state)
+        #
+        if isinstance(state, list):
+            q = q.filter(ConversationEntity.state.in_(state))
+        #
+        q = q.filter(ConversationEntity.overall_status >= 0)\
+            .order_by(desc(ConversationEntity.creation_time))
+        #
+        return q.all()
     #
     @classmethod
     def count_by__channel__chatter(cls, channel_code, chatter_code, overall_status=None, latest_creation_time=None):

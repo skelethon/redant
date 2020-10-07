@@ -5,5 +5,6 @@ sqldb = SQLAlchemy()
 
 def sqldb_hook(app):
     sqldb.init_app(app)
+    sqldb.app = app
     with app.app_context():
         sqldb.create_all()

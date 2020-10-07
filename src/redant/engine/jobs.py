@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import atexit
-import time
-import os
-import sys
+import threading
 
 from datetime import datetime
 from pytz import utc
@@ -11,6 +9,7 @@ from pytz import utc
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
+from redant.utils.database import sqldb
 from redant.utils.logging import getLogger, LogLevel as LL
 
 
@@ -21,13 +20,18 @@ class ConversationScanner():
     #
     def __init__(self, listener, *args, **kwargs):
         #
+        APSCHEDULER_CFG = sqldb.app.config['APSCHEDULER']
+        #
+        if LOG.isEnabledFor(LL.DEBUG):
+            LOG.log(LL.DEBUG, 'APSCHEDULER_CFG: %s', str(APSCHEDULER_CFG.keys()))
+        #
         executors = {
             'default': ThreadPoolExecutor(20),
             'processpool': ProcessPoolExecutor(5)
         }
         #
         jobstores = {
-            'default': SQLAlchemyJobStore(url='mysql+pymysql://chatbot:Zaq!23EdcX@localhost:3306/cronjob')
+            'default': SQLAlchemyJobStore(url=APSCHEDULER_CFG['SQLALCHEMY_DATABASE_URI'])
         }
         #
         job_defaults = {
@@ -37,7 +41,7 @@ class ConversationScanner():
         #
         self.__scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
         #
-        self.__job = self.__scheduler.add_job(listener, 'interval', seconds=7, id='engagement_checking_job', replace_existing=True)
+        self.__job = self.__scheduler.add_job(listener, 'interval', seconds=15, id='engagement_checking_job', replace_existing=True)
         #
         atexit.register(self.shutdown)
     #
@@ -46,7 +50,8 @@ class ConversationScanner():
         if self.__scheduler is not None and not self.__scheduler.running:
             self.__scheduler.start()
         if LOG.isEnabledFor(LL.DEBUG):
-            LOG.log(LL.DEBUG, 'ConversationScanner.start() started')
+            LOG.log(LL.DEBUG, 'ConversationScanner.start() started at [%s] on thread[%s]',
+                    str(datetime.now()), str(threading.current_thread().ident))
         return self
     #
     #

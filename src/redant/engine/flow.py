@@ -2,7 +2,7 @@
 
 import pytz
 
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import abstractproperty, abstractmethod
 from datetime import datetime, timedelta
 from redant.engine import EngineBase
 from redant.utils.function_util import is_callable, call_function
@@ -280,7 +280,7 @@ class Conversation(EngineBase):
         if is_callable(reply_func, self):
             return call_function(reply_func, self, **kwargs)
         #
-        return None, None
+        return SILENT_MESSAGE
     #
     #
     def transition_before(self):

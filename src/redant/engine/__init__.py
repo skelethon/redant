@@ -15,3 +15,6 @@ class EngineBase(object, metaclass=ABCMeta):
             raise TypeError(msg.format(name=cls.__name__, suffix=suffix, methods=', '.join(abs)))
         # return super(EngineBase, cls).__new__(cls, *args, **kwargs)
         return super(EngineBase, cls).__new__(cls)
+    #
+    def __init__(self, *args, **kwargs):
+        pass
