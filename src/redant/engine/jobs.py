@@ -16,7 +16,7 @@ from redant.utils.logging import getLogger, LogLevel as LL
 LOG = getLogger(__name__)
 
 
-class ConversationScanner():
+class JobScheduler():
     #
     def __init__(self, listener, *args, **kwargs):
         #
@@ -41,7 +41,7 @@ class ConversationScanner():
         #
         self.__scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
         #
-        self.__job = self.__scheduler.add_job(listener, 'interval', seconds=15, id='engagement_checking_job', replace_existing=True)
+        self.__job = self.__scheduler.add_job(listener, 'interval', seconds=7, id='engagement_checking_job', replace_existing=True)
         #
         atexit.register(self.shutdown)
     #

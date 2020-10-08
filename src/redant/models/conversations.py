@@ -84,7 +84,9 @@ class ConversationEntity(db.Model):
         self.state = state
     #
     def __repr__(self):
-        return json_dumps(self, ['id', 'channel_code', 'chatter_code', 'creation_time', 'state', 'overall_status', 'phone_number', 'creation_time_on_client'])
+        return json_dumps(self, [
+            'id', 'channel_code', 'chatter_code', 'creation_time', 'state', 'overall_status', 'phone_number', 'creation_time_on_client'
+        ])
     #
     #
     @property
@@ -109,10 +111,12 @@ class ConversationEntity(db.Model):
             .first()
     #
     @classmethod
-    def find_by__channel__state(cls, channel_code, state):
+    def find_all_by(cls, channel_code=None, state=None):
         #
-        q = cls.query\
-            .filter_by(channel_code = channel_code)
+        q = cls.query
+        #
+        if isinstance(channel_code, str):
+            q = q.filter_by(channel_code = channel_code)
         #
         if isinstance(state, str):
             q = q.filter_by(state = state)

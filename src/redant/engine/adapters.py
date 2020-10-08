@@ -9,9 +9,25 @@ class MessageConverter(EngineBase):
     def __init__(self, *args, **kwargs):
         super(MessageConverter, self).__init__(*args, **kwargs)
     #
+    #
+    @abstractproperty
+    def channel_type(self):
+        pass
+    #
+    #
+    @abstractmethod
+    def extractRequest(self, request):
+        pass
+    #
+    #
+    @abstractmethod
+    def buildResponse(self, content):
+        pass
+    #
+    #
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Controller:
+        if cls is MessageConverter:
             attrs = set(dir(C))
             if set(cls.__abstractmethods__) <= attrs:
                 return True
@@ -30,9 +46,19 @@ class MessagePublisher(EngineBase):
         return channels
     #
     #
+    @abstractmethod
+    def push(self, message, to_, from_, options=dict()):
+        pass
+    #
+    #
+    @abstractproperty
+    def channel_type(self):
+        pass
+    #
+    #
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Controller:
+        if cls is MessagePublisher:
             attrs = set(dir(C))
             if set(cls.__abstractmethods__) <= attrs:
                 return True

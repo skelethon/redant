@@ -5,6 +5,7 @@ import pytz
 from abc import abstractproperty, abstractmethod
 from datetime import datetime, timedelta
 from redant.engine import EngineBase
+from redant.engine.adapters import MessagePublisher
 from redant.utils.function_util import is_callable, call_function
 from redant.utils.logging import getLogger, LogLevel as LL
 from redant.utils.object_util import json_dumps, json_loads
@@ -20,9 +21,39 @@ class Controller(EngineBase):
     def __init__(self, *args, **kwargs):
         super(Controller, self).__init__(*args, **kwargs)
     #
+    #
     @classmethod
     def __subclasshook__(cls, C):
         if cls is Controller:
+            attrs = set(dir(C))
+            if set(cls.__abstractmethods__) <= attrs:
+                return True
+            return NotImplemented
+
+
+class Observer(EngineBase):
+    def __init__(self, *args, **kwargs):
+        self.__publishers = dict()
+        super().__init__(*args, **kwargs)
+    #
+    #
+    def register(self, adapter):
+        if isinstance(adapter, MessagePublisher):
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'publisher[%s] has been registered' % adapter.channel_type)
+            self.__publishers[adapter.channel_type] = adapter
+        return self
+    #
+    #
+    def get_publisher(self, name):
+        if name not in self.__publishers:
+            return None,  ValueError('publisher not found')
+        return self.__publishers[name], None
+    #
+    #
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is Observer:
             attrs = set(dir(C))
             if set(cls.__abstractmethods__) <= attrs:
                 return True
@@ -257,6 +288,33 @@ class Conversation(EngineBase):
             if is_callable(guide_func, self):
                 return call_function(guide_func, self)
             return guide_content
+        #
+        ## normal flow
+        #
+        from_state = self.state
+        self._next()
+        to_state = self.state
+        #
+        kwargs = dict(from_state=from_state)
+        #
+        replies = self.__descriptor.replies
+        reply_name = from_state + '__' + to_state
+        if reply_name in replies and isinstance(replies[reply_name], str):
+            reply_func = replies[reply_name]
+            return call_function(reply_func, self, **kwargs)
+        #
+        reply_func = 'reply__' + reply_name
+        if is_callable(reply_func, self):
+            return call_function(reply_func, self, **kwargs)
+        #
+        reply_func = 'reply__' + self.state
+        if is_callable(reply_func, self):
+            return call_function(reply_func, self, **kwargs)
+        #
+        return SILENT_MESSAGE
+    #
+    #
+    def next_prompt(self):
         #
         ## normal flow
         #
