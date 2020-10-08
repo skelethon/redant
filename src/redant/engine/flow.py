@@ -5,7 +5,7 @@ import pytz
 from abc import abstractproperty, abstractmethod
 from datetime import datetime, timedelta
 from redant.engine import EngineBase
-from redant.engine.adapters import MessagePublisher
+from redant.engine.adapters import MessageConverter, MessagePublisher
 from redant.utils.function_util import is_callable, call_function
 from redant.utils.logging import getLogger, LogLevel as LL
 from redant.utils.object_util import json_dumps, json_loads
@@ -20,6 +20,21 @@ class Controller(EngineBase):
     #
     def __init__(self, *args, **kwargs):
         super(Controller, self).__init__(*args, **kwargs)
+        self.__converters = dict()
+    #
+    #
+    def register(self, adapter):
+        if isinstance(adapter, MessageConverter):
+            if LOG.isEnabledFor(LL.DEBUG):
+                LOG.log(LL.DEBUG, 'converter[%s] has been registered' % adapter.channel_type)
+            self.__converters[adapter.channel_type] = adapter
+        return self
+    #
+    #
+    def get_converter(self, name):
+        if name not in self.__converters:
+            return None,  ValueError('converter not found')
+        return self.__converters[name], None
     #
     #
     @classmethod
@@ -69,7 +84,6 @@ class Conversation(EngineBase):
     __persist = None
     __timezone = None
     __descriptor = None
-    __final_states = []
     __flow = None
     #
     #
@@ -81,7 +95,6 @@ class Conversation(EngineBase):
         #
         assert isinstance(descriptor, Descriptor), 'descriptor argument must be a Descriptor'
         self.__descriptor = descriptor
-        self.__final_states = [ self.__descriptor.done_state, self.__descriptor.quit_state ]
         #
         self.__flow = _Flow(conversation = self)
         #
@@ -282,6 +295,11 @@ class Conversation(EngineBase):
         #
         ##
         #
+        if self.state in self._internal_states:
+            return self._in_progress_prompt
+        #
+        ##
+        #
         guide_matched, guide_content = self._help
         if guide_matched:
             guide_func = 'help__' + self.state
@@ -354,19 +372,27 @@ class Conversation(EngineBase):
         return self.state == self._initial_state
     #
     def _isFinalState(self):
-        return self.state in self.__final_states
+        return self.state in self._final_states or self.state == self._quit_state
     #
     @property
     def _initial_state(self):
         return self.__descriptor.initial_state
     #
     @property
-    def _done_state(self):
-        return self.__descriptor.done_state
-    #
-    @property
     def _quit_state(self):
         return self.__descriptor.quit_state
+    #
+    @property
+    def _internal_states(self):
+        return self.__descriptor.internal_states
+    #
+    @property
+    def _final_states(self):
+        return self.__descriptor.final_states
+    #
+    @property
+    def _in_progress_prompt(self):
+        return SILENT_MESSAGE
     #
     @property
     def _force_quit(self):
@@ -454,11 +480,15 @@ class Descriptor(EngineBase):
         pass
     #
     @abstractproperty
-    def done_state(self):
+    def quit_state(self):
         pass
     #
     @abstractproperty
-    def quit_state(self):
+    def internal_states(self):
+        pass
+    #
+    @abstractproperty
+    def final_states(self):
         pass
     #
     @abstractproperty
@@ -590,9 +620,9 @@ class _Flow(object):
         return False
     #
     def __has_done(self, persist):
-        if persist.state == self.__descriptor.done_state:
+        if persist.state in self.__descriptor.final_states:
             if LOG.isEnabledFor(LL.DEBUG):
-                LOG.log(LL.DEBUG, 'The conversation has been done')
+                LOG.log(LL.DEBUG, 'The conversation has finished')
             return True
         return False
     #
